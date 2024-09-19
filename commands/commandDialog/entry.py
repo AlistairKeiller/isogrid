@@ -127,8 +127,8 @@ def command_execute(args: adsk.core.CommandEventArgs):
         max_point = adsk.core.Point3D.create(max_x, max_y, 0)
 
         # Create a honeycomb pattern of hexagons spaced by wall_thickness up to max_point
-        current_y = min_point.y
-        row_index = 0  # keep track of which row we are in
+        current_y = min_point.y - (size_input * 3 ** 0.5 + thickness_input) / 2
+        row_index = -1  # keep track of which row we are in
 
         while current_y < max_point.y:
             current_x = min_point.x
