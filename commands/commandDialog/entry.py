@@ -77,8 +77,7 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
     defaultLengthUnits = app.activeProduct.unitsManager.defaultLengthUnits
     inputs.addValueInput('thickness_input', 'Wall Thickness', defaultLengthUnits, adsk.core.ValueInput.createByReal(1.0))
     inputs.addValueInput('size_input', 'Triangle Size', defaultLengthUnits, adsk.core.ValueInput.createByReal(10.0))
-    inputs.addValueInput('height_input', 'Grid Height', defaultLengthUnits, adsk.core.ValueInput.createByReal(1.0))
-    inputs.addValueInput('hole_size_input', 'Hole Diameter', defaultLengthUnits, adsk.core.ValueInput.createByReal(1.0))
+    inputs.addValueInput('height_input', 'Extrude Height', defaultLengthUnits, adsk.core.ValueInput.createByReal(1.0))
     inputs.addValueInput('fillet_radius_input', 'Fillet Radius', defaultLengthUnits, adsk.core.ValueInput.createByReal(0.5))  # New input for fillet radius
 
     # Add a selection input for selecting a face
@@ -96,11 +95,11 @@ def command_execute(args: adsk.core.CommandEventArgs):
     inputs = args.command.commandInputs
     thickness_input = inputs.itemById('thickness_input').value
     size_input = inputs.itemById('size_input').value
+    height_input = inputs.itemById('height_input').value
     fillet_radius_input = inputs.itemById('fillet_radius_input').value  # Fillet radius input
 
     # Get the selected face
     face_selection = inputs.itemById('face_selection').selection(0).entity
-    bounding_box = face_selection.boundingBox
 
     try:
         sketches = root_comp.sketches
@@ -136,16 +135,16 @@ def command_execute(args: adsk.core.CommandEventArgs):
             
             # Offset every other row to achieve the staggered honeycomb effect
             if row_index % 2 == 1:
-                current_x += (size_input * 3 / 2)  # Shift half of the width of the hexagon
+                current_x += size_input * 1.5  # Shift half the width of the hexagon
             
             while current_x < max_point.x:
                 # create points of hex starting from the lower left corner of the bounding box
                 p1 = adsk.core.Point3D.create(current_x + size_input / 2, current_y, 0)
-                p2 = adsk.core.Point3D.create(current_x + size_input * 3 / 2, current_y, 0)
-                p3 = adsk.core.Point3D.create(current_x + size_input * 2, current_y + size_input * 3 ** .5 / 2, 0)
-                p4 = adsk.core.Point3D.create(current_x + size_input * 3 / 2, current_y + size_input * 3 ** .5, 0)
-                p5 = adsk.core.Point3D.create(current_x + size_input / 2, current_y + size_input * 3 ** .5, 0)
-                p6 = adsk.core.Point3D.create(current_x, current_y + size_input * 3 ** .5 / 2, 0)
+                p2 = adsk.core.Point3D.create(current_x + size_input * 1.5, current_y, 0)
+                p3 = adsk.core.Point3D.create(current_x + size_input * 2, current_y + size_input * 3 ** 0.5 / 2, 0)
+                p4 = adsk.core.Point3D.create(current_x + size_input * 1.5, current_y + size_input * 3 ** 0.5, 0)
+                p5 = adsk.core.Point3D.create(current_x + size_input / 2, current_y + size_input * 3 ** 0.5, 0)
+                p6 = adsk.core.Point3D.create(current_x, current_y + size_input * 3 ** 0.5 / 2, 0)
 
                 # create lines of hex
                 line1 = lines.addByTwoPoints(p1, p2)
@@ -165,11 +164,12 @@ def command_execute(args: adsk.core.CommandEventArgs):
                 arcs.addFillet(line6, line6.endSketchPoint.geometry, line1, line1.startSketchPoint.geometry, fillet_radius_input)
 
                 # Move to the next hexagon position
-                current_x += size_input * 3 + thickness_input
+                current_x += size_input * 3 + thickness_input  # Adjust spacing between hexagons
 
             # Move to the next row of hexagons
-            current_y += size_input * 3 ** .5 + thickness_input
+            current_y += size_input * 3 ** 0.5 + thickness_input  # Adjust vertical spacing
             row_index += 1  # Increase the row index
+
 
 
         hex_area = (3 * (3 ** 0.5) * (size_input ** 2)) / 2
@@ -180,7 +180,7 @@ def command_execute(args: adsk.core.CommandEventArgs):
         ext_input = extrudes.createInput(prof, adsk.fusion.FeatureOperations.CutFeatureOperation)
 
         # Define the extent of the extrusion to go downwards
-        distance = adsk.core.ValueInput.createByReal(-thickness_input)
+        distance = adsk.core.ValueInput.createByReal(-height_input)
         ext_input.setDistanceExtent(False, distance)
 
         # Create the extrusion
