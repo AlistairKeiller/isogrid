@@ -67,7 +67,6 @@ def stop():
     if command_definition:
         command_definition.deleteMe()
 
-# Function that is called when a user clicks the corresponding button in the UI.
 def command_created(args: adsk.core.CommandCreatedEventArgs):
     futil.log(f'{CMD_NAME} Command Created Event')
 
@@ -80,6 +79,7 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
     inputs.addValueInput('size_input', 'Triangle Size', defaultLengthUnits, adsk.core.ValueInput.createByReal(10.0))
     inputs.addValueInput('height_input', 'Grid Height', defaultLengthUnits, adsk.core.ValueInput.createByReal(1.0))
     inputs.addValueInput('hole_size_input', 'Hole Diameter', defaultLengthUnits, adsk.core.ValueInput.createByReal(1.0))
+    inputs.addValueInput('fillet_radius_input', 'Fillet Radius', defaultLengthUnits, adsk.core.ValueInput.createByReal(0.5))  # New input for fillet radius
 
     # Connect to the events that are needed by this command.
     futil.add_handler(args.command.execute, command_execute, local_handlers=local_handlers)
@@ -93,105 +93,42 @@ def command_execute(args: adsk.core.CommandEventArgs):
     size_input = inputs.itemById('size_input').value
     height_input = inputs.itemById('height_input').value
     hole_size_input = inputs.itemById('hole_size_input').value
+    fillet_radius_input = inputs.itemById('fillet_radius_input').value  # Fillet radius input
 
     try:
-        # Get root component
         sketches = root_comp.sketches
         xyPlane = root_comp.xYConstructionPlane
         sketch = sketches.add(xyPlane)
 
         lines = sketch.sketchCurves.sketchLines
-
-        # Update the half-size and triangle height
-        half_size = size_input / 2.0
-        triangle_height = (size_input * (3 ** 0.5)) / 2.0
-
-        # Move the bottom-left corner (p1) to the origin (Z-axis), (0, 0)
-        p1 = adsk.core.Point3D.create(0, 0, 0)  # Bottom-left corner on the Z-axis
-
-        # Calculate the other two points relative to p1
-        p2 = adsk.core.Point3D.create(size_input, 0, 0)  # Bottom-right corner
-        p3 = adsk.core.Point3D.create(half_size, triangle_height, 0)  # Top point of the triangle
-
-        # Draw the triangle
+        
+        # create points of hex
+        p1 = adsk.core.Point3D.create(0, 0, 0)
+        p2 = adsk.core.Point3D.create(size_input, 0, 0)
+        p3 = adsk.core.Point3D.create(size_input * 3 / 2, size_input * 3 ** .5 / 2, 0)
+        p4 = adsk.core.Point3D.create(size_input, size_input * 3 ** .5, 0)
+        p5 = adsk.core.Point3D.create(0, size_input * 3 ** .5, 0)
+        p6 = adsk.core.Point3D.create(-size_input / 2, size_input * 3 ** .5 / 2, 0)
+        
+        # create lines of hex
         line1 = lines.addByTwoPoints(p1, p2)
         line2 = lines.addByTwoPoints(p2, p3)
-        line3 = lines.addByTwoPoints(p3, p1)
-
-        # Offset triangle by wall thickness
+        line3 = lines.addByTwoPoints(p3, p4)
+        line4 = lines.addByTwoPoints(p4, p5)
+        line5 = lines.addByTwoPoints(p5, p6)
+        line6 = lines.addByTwoPoints(p6, p1)
+        
         entities = adsk.core.ObjectCollection.create()
         entities.add(line1)
         entities.add(line2)
         entities.add(line3)
-
-        point_inside = adsk.core.Point3D.create(half_size, triangle_height / 3.0, 0)
-        offsetCurves = sketch.offset(entities, point_inside, thickness_input)
-
-        # Create circles at the triangle's vertices for holes
-        circles = sketch.sketchCurves.sketchCircles
-        circles.addByCenterRadius(p1, hole_size_input / 2.0)
-        circles.addByCenterRadius(p2, hole_size_input / 2.0)
-        circles.addByCenterRadius(p3, hole_size_input / 2.0)
-
-        # Get the profile with two loops for extrusion
-        profs = sketch.profiles
-        prof = None
-        for profile in profs:
-            if profile.profileLoops.count == 2:
-                prof = profile
-                break
-
-        if prof is None:
-            ui.messageBox('Failed to get the profile for extrusion')
-            return
-
-        extrudes = root_comp.features.extrudeFeatures
-        extInput = extrudes.createInput(prof, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
-
-        distance = adsk.core.ValueInput.createByReal(height_input)
-        extInput.setDistanceExtent(False, distance)
-
-        # Create the extrusion
-        extrude_feature = extrudes.add(extInput)
-
-        # Create a circular pattern of the extrusion
-        circular_patterns = root_comp.features.circularPatternFeatures
-        entities_for_pattern = adsk.core.ObjectCollection.create()
-        entities_for_pattern.add(extrude_feature)
-
-        # Define the axis for the pattern (Z-axis for circular pattern in XY plane)
-        z_axis = root_comp.zConstructionAxis
-
-        # Create the circular pattern input
-        pattern_input = circular_patterns.createInput(entities_for_pattern, z_axis)
-        pattern_input.quantity = adsk.core.ValueInput.createByReal(6)  # 6 triangles
-        pattern_input.totalAngle = adsk.core.ValueInput.createByString('360 deg')  # Full circle
-        pattern_input.isSymmetric = False
-
-        # Add the circular pattern feature
-        pattern_feature = circular_patterns.add(pattern_input)
-
-        # Combine the bodies created by the circular pattern into one
-        combine_features = root_comp.features.combineFeatures
-
-        # Collect the bodies created by the circular pattern
-        bodies = root_comp.bRepBodies
-        target_body = bodies.item(0)  # First body as target
-        tool_bodies = adsk.core.ObjectCollection.create()
-
-        # Add all the other bodies as tool bodies for the combine operation
-        for i in range(1, bodies.count):
-            tool_bodies.add(bodies.item(i))
-
-        if tool_bodies.count > 0:
-            # Define the combine input
-            combine_input = combine_features.createInput(target_body, tool_bodies)
-
-            # Set the operation type to 'Join'
-            combine_input.operation = adsk.fusion.FeatureOperations.JoinFeatureOperation
-
-            # Execute the combine feature
-            combine_features.add(combine_input)
+        entities.add(line4)
+        entities.add(line5)
+        entities.add(line6)
+        
+        offset = sketch.offset(entities, adsk.core.Point3D.create(-1, 0, 0), thickness_input)
+        
+        ui.messageBox(f'Created')
 
     except:
         if ui:
