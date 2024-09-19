@@ -1,0 +1,13 @@
+{
+	"autodeskProduct":	"Fusion",
+	"type":	"addin",
+	"id":	"b3085a4f-b1eb-4dd2-b10a-b949696ad607",
+	"author":	"Alistair Keiller",
+	"description":	{
+		"":	""
+	},
+	"version":	"1.0.0",
+	"runOnStartup":	false,
+	"supportedOS":	"windows|mac",
+	"editEnabled":	true
+}
