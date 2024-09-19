@@ -169,11 +169,34 @@ def command_execute(args: adsk.core.CommandEventArgs):
         pattern_input.isSymmetric = False
 
         # Add the circular pattern feature
-        circular_patterns.add(pattern_input)
+        pattern_feature = circular_patterns.add(pattern_input)
+
+        # Combine the bodies created by the circular pattern into one
+        combine_features = root_comp.features.combineFeatures
+
+        # Collect the bodies created by the circular pattern
+        bodies = root_comp.bRepBodies
+        target_body = bodies.item(0)  # First body as target
+        tool_bodies = adsk.core.ObjectCollection.create()
+
+        # Add all the other bodies as tool bodies for the combine operation
+        for i in range(1, bodies.count):
+            tool_bodies.add(bodies.item(i))
+
+        if tool_bodies.count > 0:
+            # Define the combine input
+            combine_input = combine_features.createInput(target_body, tool_bodies)
+
+            # Set the operation type to 'Join'
+            combine_input.operation = adsk.fusion.FeatureOperations.JoinFeatureOperation
+
+            # Execute the combine feature
+            combine_features.add(combine_input)
 
     except:
         if ui:
             ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
+
 
 
 
