@@ -1,3 +1,4 @@
+import traceback
 import adsk.core
 import adsk.fusion
 import os
@@ -76,8 +77,8 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
     # Create value input fields for wall thickness, unit length, etc.
     defaultLengthUnits = app.activeProduct.unitsManager.defaultLengthUnits
     inputs.addValueInput('thickness_input', 'Wall Thickness', defaultLengthUnits, adsk.core.ValueInput.createByReal(0.1))
-    inputs.addValueInput('size_input', 'Triangle Size', defaultLengthUnits, adsk.core.ValueInput.createByReal(1.0))
-    inputs.addValueInput('height_input', 'Grid Height', defaultLengthUnits, adsk.core.ValueInput.createByReal(10.0))
+    inputs.addValueInput('size_input', 'Triangle Size', defaultLengthUnits, adsk.core.ValueInput.createByReal(10.0))
+    inputs.addValueInput('height_input', 'Grid Height', defaultLengthUnits, adsk.core.ValueInput.createByReal(1.0))
 
     # Connect to the events that are needed by this command.
     futil.add_handler(args.command.execute, command_execute, local_handlers=local_handlers)
@@ -92,56 +93,80 @@ def command_execute(args: adsk.core.CommandEventArgs):
     size_input = inputs.itemById('size_input').value
     height_input = inputs.itemById('height_input').value
 
-    # Create a sketch for the base triangle
-    sketches = root_comp.sketches
-    xy_plane = root_comp.xYConstructionPlane
-    sketch = sketches.add(xy_plane)
-
-    # Create an equilateral triangle in the sketch
-    points = [
-        adsk.core.Point3D.create(0, 0, 0),
-        adsk.core.Point3D.create(size_input, 0, 0),
-        adsk.core.Point3D.create(size_input / 2, (size_input * (3 ** 0.5)) / 2, 0)
-    ]
-    lines = sketch.sketchCurves.sketchLines
-    for i in range(len(points)):
-        lines.addByTwoPoints(points[i], points[(i + 1) % 3])
-
-    # Extrude the triangle
-    prof = sketch.profiles.item(0)
-    extrudes = root_comp.features.extrudeFeatures
-    ext_input = extrudes.createInput(prof, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
-    distance = adsk.core.ValueInput.createByReal(height_input)
-    ext_input.setDistanceExtent(False, distance)
-    extrude = extrudes.add(ext_input)
-
-    # Use the shell tool to adjust wall thickness
-    shellFeats = root_comp.features.shellFeatures
-    shellInput = shellFeats.createInput(extrude.bodies.item(0), False)
-    shellThickness = adsk.core.ValueInput.createByReal(thickness_input)
-    shellInput.insideThickness = shellThickness
-    shellFeats.add(shellInput)
-
-    # Create circular pattern of 6 triangles
-    circularPatterns = root_comp.features.circularPatternFeatures
-    entities = adsk.core.ObjectCollection.create()
-    entities.add(extrude.bodies.item(0))
-    z_axis = root_comp.zConstructionAxis
-    circularPatternInput = circularPatterns.createInput(entities, z_axis)
-    circularPatternInput.quantity = adsk.core.ValueInput.createByReal(6)
-    circularPatternInput.totalAngle = adsk.core.ValueInput.createByString('360 deg')
-    circularPatterns.add(circularPatternInput)
-
-    # Create a linear pattern for the isogrid
-    linearPatterns = root_comp.features.rectangularPatternFeatures
-    linearPatternInput = linearPatterns.createInput(entities, root_comp.xConstructionAxis, root_comp.yConstructionAxis)
-    linearPatternInput.quantityOne = adsk.core.ValueInput.createByReal(5)  # Adjust as needed
-    linearPatternInput.quantityTwo = adsk.core.ValueInput.createByReal(5)  # Adjust as needed
-    linearPatterns.add(linearPatternInput)
-
     # Log and display message
     futil.log(f'{CMD_NAME} Isogrid Generated')
-    ui.messageBox(f'Isogrid created with wall thickness {thickness_input} and triangle size {size_input}')
+
+    # Begin code to create the triangle
+    try:
+        # Get the root component of the active design
+        design = adsk.fusion.Design.cast(app.activeProduct)
+        root_comp = design.rootComponent
+
+        # Create a new sketch on the XY plane
+        sketches = root_comp.sketches
+        xyPlane = root_comp.xYConstructionPlane
+        sketch = sketches.add(xyPlane)
+
+        # Draw an equilateral triangle with side length size_input
+        lines = sketch.sketchCurves.sketchLines
+
+        # Calculate the points for the triangle
+        half_size = size_input / 2.0
+        triangle_height = (size_input * (3 ** 0.5)) / 2.0
+
+        p1 = adsk.core.Point3D.create(-half_size, 0, 0)
+        p2 = adsk.core.Point3D.create(half_size, 0, 0)
+        p3 = adsk.core.Point3D.create(0, triangle_height, 0)
+
+        line1 = lines.addByTwoPoints(p1, p2)
+        line2 = lines.addByTwoPoints(p2, p3)
+        line3 = lines.addByTwoPoints(p3, p1)
+
+        # Offset the triangle inwards by wall thickness
+        entities = adsk.core.ObjectCollection.create()
+        entities.add(line1)
+        entities.add(line2)
+        entities.add(line3)
+
+        # Use a Point3D for the offset direction (center of the triangle)
+        point_inside = adsk.core.Point3D.create(0, triangle_height / 3.0, 0)
+
+        offsetCurves = sketch.offset(
+            entities,
+            point_inside,
+            -thickness_input  # Negative to offset inwards
+        )
+
+        # Now we have two profiles: the outer and inner triangle
+        # We need to get the profile between them
+        profs = sketch.profiles
+
+        # Find the profile with two loops (outer and inner)
+        prof = None
+        for profile in profs:
+            if profile.profileLoops.count == 2:
+                prof = profile
+                break
+
+        if prof is None:
+            ui.messageBox('Failed to get the profile for extrusion')
+            return
+
+        # Create an extrusion input
+        extrudes = root_comp.features.extrudeFeatures
+        extInput = extrudes.createInput(prof, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
+
+        # Define the distance extent
+        distance = adsk.core.ValueInput.createByReal(height_input)
+        extInput.setDistanceExtent(False, distance)
+
+        # Create the extrusion
+        extrudes.add(extInput)
+
+    except:
+        if ui:
+            ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
+
 
 # This event handler is called when the command terminates.
 def command_destroy(args: adsk.core.CommandEventArgs):
