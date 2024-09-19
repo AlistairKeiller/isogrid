@@ -81,6 +81,11 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
     inputs.addValueInput('hole_size_input', 'Hole Diameter', defaultLengthUnits, adsk.core.ValueInput.createByReal(1.0))
     inputs.addValueInput('fillet_radius_input', 'Fillet Radius', defaultLengthUnits, adsk.core.ValueInput.createByReal(0.5))  # New input for fillet radius
 
+    # Add a selection input for selecting a face
+    selection_input = inputs.addSelectionInput('face_selection', 'Select Face', 'Select a face to place the grid on')
+    selection_input.addSelectionFilter(adsk.core.SelectionCommandInput.SolidFaces)
+    selection_input.setSelectionLimits(1, 1)
+
     # Connect to the events that are needed by this command.
     futil.add_handler(args.command.execute, command_execute, local_handlers=local_handlers)
     futil.add_handler(args.command.destroy, command_destroy, local_handlers=local_handlers)
@@ -93,13 +98,16 @@ def command_execute(args: adsk.core.CommandEventArgs):
     size_input = inputs.itemById('size_input').value
     fillet_radius_input = inputs.itemById('fillet_radius_input').value  # Fillet radius input
 
+    # Get the selected face
+    face_selection = inputs.itemById('face_selection').selection(0).entity
+    # bounding_box = face_selection.boundingBox
+
     try:
         sketches = root_comp.sketches
-        xyPlane = root_comp.xYConstructionPlane
-        sketch = sketches.add(xyPlane)
+        sketch = sketches.add(face_selection)
 
         lines = sketch.sketchCurves.sketchLines
-        
+
         # create points of hex
         p1 = adsk.core.Point3D.create(0, 0, 0)
         p2 = adsk.core.Point3D.create(size_input, 0, 0)
@@ -107,7 +115,7 @@ def command_execute(args: adsk.core.CommandEventArgs):
         p4 = adsk.core.Point3D.create(size_input, size_input * 3 ** .5, 0)
         p5 = adsk.core.Point3D.create(0, size_input * 3 ** .5, 0)
         p6 = adsk.core.Point3D.create(-size_input / 2, size_input * 3 ** .5 / 2, 0)
-        
+
         # create lines of hex
         line1 = lines.addByTwoPoints(p1, p2)
         line2 = lines.addByTwoPoints(p2, p3)
@@ -125,15 +133,23 @@ def command_execute(args: adsk.core.CommandEventArgs):
         arcs.addFillet(line5, line5.endSketchPoint.geometry, line6, line6.startSketchPoint.geometry, fillet_radius_input)
         arcs.addFillet(line6, line6.endSketchPoint.geometry, line1, line1.startSketchPoint.geometry, fillet_radius_input)
 
-        # Get the profile defined by the hexagon and its offset
-        prof = sketch.profiles.item(0)
+        # Ensure the profile is bounded by 6 lines
+        prof =  sketch.profiles[2]
+        # prof = None
+        # for profile in sketch.profiles:
+        #     if len(profile.profileLoops) == 1:
+        #         prof = profile
+        #         break
+
+        # if not prof:
+        #     raise ValueError("No valid hexagonal profile found.")
 
         # Create an extrusion input
         extrudes = root_comp.features.extrudeFeatures
         ext_input = extrudes.createInput(prof, adsk.fusion.FeatureOperations.CutFeatureOperation)
 
-        # Define the extent of the extrusion
-        distance = adsk.core.ValueInput.createByReal(thickness_input)
+        # Define the extent of the extrusion to go downwards
+        distance = adsk.core.ValueInput.createByReal(-thickness_input)
         ext_input.setDistanceExtent(False, distance)
 
         # Create the extrusion
@@ -144,10 +160,6 @@ def command_execute(args: adsk.core.CommandEventArgs):
     except:
         if ui:
             ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
-
-
-
-
 
 # This event handler is called when the command terminates.
 def command_destroy(args: adsk.core.CommandEventArgs):
