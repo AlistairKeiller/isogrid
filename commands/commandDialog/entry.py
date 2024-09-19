@@ -115,42 +115,53 @@ def command_execute(args: adsk.core.CommandEventArgs):
         max_y = float('-inf')
         for profile in sketch.profiles:
             for loop in profile.profileLoops:
-            for profile_curve in loop.profileCurves:
-                start_point = profile_curve.geometry.startPoint
-                end_point = profile_curve.geometry.endPoint
-                min_x = min(min_x, start_point.x, end_point.x)
-                min_y = min(min_y, start_point.y, end_point.y)
-                max_x = max(max_x, start_point.x, end_point.x)
-                max_y = max(max_y, start_point.y, end_point.y)
+                for profile_curve in loop.profileCurves:
+                    start_point = profile_curve.geometry.startPoint
+                    end_point = profile_curve.geometry.endPoint
+                    min_x = min(min_x, start_point.x, end_point.x)
+                    min_y = min(min_y, start_point.y, end_point.y)
+                    max_x = max(max_x, start_point.x, end_point.x)
+                    max_y = max(max_y, start_point.y, end_point.y)
 
         # Use the min_x, min_y, max_x, and max_y as the bounding points
         min_point = adsk.core.Point3D.create(min_x, min_y, 0)
         max_point = adsk.core.Point3D.create(max_x, max_y, 0)
 
-        # create points of hex starting from the lower left corner of the bounding box
-        p1 = adsk.core.Point3D.create(min_point.x + size_input / 2, min_point.y, 0)
-        p2 = adsk.core.Point3D.create(min_point.x + size_input * 3 / 2, min_point.y, 0)
-        p3 = adsk.core.Point3D.create(min_point.x + size_input * 2, min_point.y + size_input * 3 ** .5 / 2, 0)
-        p4 = adsk.core.Point3D.create(min_point.x + size_input * 3 / 2, min_point.y + size_input * 3 ** .5, 0)
-        p5 = adsk.core.Point3D.create(min_point.x + size_input / 2, min_point.y + size_input * 3 ** .5, 0)
-        p6 = adsk.core.Point3D.create(min_point.x, min_point.y + size_input * 3 ** .5 / 2, 0)
+        # Create a rectangular pattern of hexagons spaced by wall_thickness up to max_point
+        current_y = min_point.y
+        while current_y < max_point.y:
+            current_x = min_point.x
+            while current_x < max_point.x:
+                # create points of hex starting from the lower left corner of the bounding box
+                p1 = adsk.core.Point3D.create(current_x + size_input / 2, current_y, 0)
+                p2 = adsk.core.Point3D.create(current_x + size_input * 3 / 2, current_y, 0)
+                p3 = adsk.core.Point3D.create(current_x + size_input * 2, current_y + size_input * 3 ** .5 / 2, 0)
+                p4 = adsk.core.Point3D.create(current_x + size_input * 3 / 2, current_y + size_input * 3 ** .5, 0)
+                p5 = adsk.core.Point3D.create(current_x + size_input / 2, current_y + size_input * 3 ** .5, 0)
+                p6 = adsk.core.Point3D.create(current_x, current_y + size_input * 3 ** .5 / 2, 0)
 
-        # create lines of hex
-        line1 = lines.addByTwoPoints(p1, p2)
-        line2 = lines.addByTwoPoints(p2, p3)
-        line3 = lines.addByTwoPoints(p3, p4)
-        line4 = lines.addByTwoPoints(p4, p5)
-        line5 = lines.addByTwoPoints(p5, p6)
-        line6 = lines.addByTwoPoints(p6, p1)
+                # create lines of hex
+                line1 = lines.addByTwoPoints(p1, p2)
+                line2 = lines.addByTwoPoints(p2, p3)
+                line3 = lines.addByTwoPoints(p3, p4)
+                line4 = lines.addByTwoPoints(p4, p5)
+                line5 = lines.addByTwoPoints(p5, p6)
+                line6 = lines.addByTwoPoints(p6, p1)
 
-        # Add fillets to the hexagon corners
-        arcs = sketch.sketchCurves.sketchArcs
-        arcs.addFillet(line1, line1.endSketchPoint.geometry, line2, line2.startSketchPoint.geometry, fillet_radius_input)
-        arcs.addFillet(line2, line2.endSketchPoint.geometry, line3, line3.startSketchPoint.geometry, fillet_radius_input)
-        arcs.addFillet(line3, line3.endSketchPoint.geometry, line4, line4.startSketchPoint.geometry, fillet_radius_input)
-        arcs.addFillet(line4, line4.endSketchPoint.geometry, line5, line5.startSketchPoint.geometry, fillet_radius_input)
-        arcs.addFillet(line5, line5.endSketchPoint.geometry, line6, line6.startSketchPoint.geometry, fillet_radius_input)
-        arcs.addFillet(line6, line6.endSketchPoint.geometry, line1, line1.startSketchPoint.geometry, fillet_radius_input)
+                # Add fillets to the hexagon corners
+                arcs = sketch.sketchCurves.sketchArcs
+                arcs.addFillet(line1, line1.endSketchPoint.geometry, line2, line2.startSketchPoint.geometry, fillet_radius_input)
+                arcs.addFillet(line2, line2.endSketchPoint.geometry, line3, line3.startSketchPoint.geometry, fillet_radius_input)
+                arcs.addFillet(line3, line3.endSketchPoint.geometry, line4, line4.startSketchPoint.geometry, fillet_radius_input)
+                arcs.addFillet(line4, line4.endSketchPoint.geometry, line5, line5.startSketchPoint.geometry, fillet_radius_input)
+                arcs.addFillet(line5, line5.endSketchPoint.geometry, line6, line6.startSketchPoint.geometry, fillet_radius_input)
+                arcs.addFillet(line6, line6.endSketchPoint.geometry, line1, line1.startSketchPoint.geometry, fillet_radius_input)
+
+                # Move to the next hexagon position
+                current_x += size_input * 3 + thickness_input
+
+            # Move to the next row of hexagons
+            current_y += size_input * 3 ** .5 + thickness_input
 
         hex_area = (3 * (3 ** 0.5) * (size_input ** 2)) / 2
         prof = max((p for p in sketch.profiles if p.areaProperties().area < hex_area), key=lambda p: p.areaProperties().area)
