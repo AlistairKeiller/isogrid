@@ -100,7 +100,7 @@ def command_execute(args: adsk.core.CommandEventArgs):
 
     # Get the selected face
     face_selection = inputs.itemById('face_selection').selection(0).entity
-    # bounding_box = face_selection.boundingBox
+    bounding_box = face_selection.boundingBox
 
     try:
         sketches = root_comp.sketches
@@ -108,13 +108,16 @@ def command_execute(args: adsk.core.CommandEventArgs):
 
         lines = sketch.sketchCurves.sketchLines
 
-        # create points of hex
-        p1 = adsk.core.Point3D.create(0, 0, 0)
-        p2 = adsk.core.Point3D.create(size_input, 0, 0)
-        p3 = adsk.core.Point3D.create(size_input * 3 / 2, size_input * 3 ** .5 / 2, 0)
-        p4 = adsk.core.Point3D.create(size_input, size_input * 3 ** .5, 0)
-        p5 = adsk.core.Point3D.create(0, size_input * 3 ** .5, 0)
-        p6 = adsk.core.Point3D.create(-size_input / 2, size_input * 3 ** .5 / 2, 0)
+        # Get the lower left corner of the bounding box
+        min_point = bounding_box.minPoint
+
+        # create points of hex starting from the lower left corner of the bounding box
+        p1 = adsk.core.Point3D.create(min_point.x + size_input / 2, min_point.y, 0)
+        p2 = adsk.core.Point3D.create(min_point.x + size_input * 3 / 2, min_point.y, 0)
+        p3 = adsk.core.Point3D.create(min_point.x + size_input * 2, min_point.y + size_input * 3 ** .5 / 2, 0)
+        p4 = adsk.core.Point3D.create(min_point.x + size_input * 3 / 2, min_point.y + size_input * 3 ** .5, 0)
+        p5 = adsk.core.Point3D.create(min_point.x + size_input / 2, min_point.y + size_input * 3 ** .5, 0)
+        p6 = adsk.core.Point3D.create(min_point.x, min_point.y + size_input * 3 ** .5 / 2, 0)
 
         # create lines of hex
         line1 = lines.addByTwoPoints(p1, p2)
@@ -152,6 +155,8 @@ def command_execute(args: adsk.core.CommandEventArgs):
     except:
         if ui:
             ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
+
+
 
 # This event handler is called when the command terminates.
 def command_destroy(args: adsk.core.CommandEventArgs):
