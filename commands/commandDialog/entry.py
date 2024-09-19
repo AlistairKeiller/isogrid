@@ -135,7 +135,7 @@ def command_execute(args: adsk.core.CommandEventArgs):
             
             # Offset every other row to achieve the staggered honeycomb effect
             if row_index % 2 == 1:
-                current_x += size_input * 1.5 + thickness_input / 2  # Shift half the width of the hexagon
+                current_x += (size_input * 3 + thickness_input * 3 ** 0.5) / 2  # Shift half the width of the hexagon
             
             while current_x < max_point.x:
                 # create points of hex starting from the lower left corner of the bounding box
@@ -164,10 +164,10 @@ def command_execute(args: adsk.core.CommandEventArgs):
                 arcs.addFillet(line6, line6.endSketchPoint.geometry, line1, line1.startSketchPoint.geometry, fillet_radius_input)
 
                 # Move to the next hexagon position
-                current_x += size_input * 3 + thickness_input  # Adjust spacing between hexagons
+                current_x += size_input * 3 + thickness_input * 3 ** 0.5  # Adjust spacing between hexagons
 
             # Move to the next row of hexagons
-            current_y += size_input * 3 ** 0.5 / 2 + thickness_input  # Adjust vertical spacing
+            current_y += (size_input * 3 ** 0.5 + thickness_input) / 2  # Adjust vertical spacing
             row_index += 1  # Increase the row index
 
 
