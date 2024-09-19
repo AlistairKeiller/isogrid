@@ -133,16 +133,8 @@ def command_execute(args: adsk.core.CommandEventArgs):
         arcs.addFillet(line5, line5.endSketchPoint.geometry, line6, line6.startSketchPoint.geometry, fillet_radius_input)
         arcs.addFillet(line6, line6.endSketchPoint.geometry, line1, line1.startSketchPoint.geometry, fillet_radius_input)
 
-        # Ensure the profile is bounded by 6 lines
-        prof =  sketch.profiles[2]
-        # prof = None
-        # for profile in sketch.profiles:
-        #     if len(profile.profileLoops) == 1:
-        #         prof = profile
-        #         break
-
-        # if not prof:
-        #     raise ValueError("No valid hexagonal profile found.")
+        hex_area = (3 * (3 ** 0.5) * (size_input ** 2)) / 2
+        prof = max((p for p in sketch.profiles if p.areaProperties().area < hex_area), key=lambda p: p.areaProperties().area)
 
         # Create an extrusion input
         extrudes = root_comp.features.extrudeFeatures
