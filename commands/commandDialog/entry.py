@@ -127,10 +127,17 @@ def command_execute(args: adsk.core.CommandEventArgs):
         min_point = adsk.core.Point3D.create(min_x, min_y, 0)
         max_point = adsk.core.Point3D.create(max_x, max_y, 0)
 
-        # Create a rectangular pattern of hexagons spaced by wall_thickness up to max_point
+        # Create a honeycomb pattern of hexagons spaced by wall_thickness up to max_point
         current_y = min_point.y
+        row_index = 0  # keep track of which row we are in
+
         while current_y < max_point.y:
             current_x = min_point.x
+            
+            # Offset every other row to achieve the staggered honeycomb effect
+            if row_index % 2 == 1:
+                current_x += (size_input * 3 / 2)  # Shift half of the width of the hexagon
+            
             while current_x < max_point.x:
                 # create points of hex starting from the lower left corner of the bounding box
                 p1 = adsk.core.Point3D.create(current_x + size_input / 2, current_y, 0)
@@ -162,6 +169,8 @@ def command_execute(args: adsk.core.CommandEventArgs):
 
             # Move to the next row of hexagons
             current_y += size_input * 3 ** .5 + thickness_input
+            row_index += 1  # Increase the row index
+
 
         hex_area = (3 * (3 ** 0.5) * (size_input ** 2)) / 2
         prof = max((p for p in sketch.profiles if p.areaProperties().area < hex_area), key=lambda p: p.areaProperties().area)
