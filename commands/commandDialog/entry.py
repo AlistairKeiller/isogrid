@@ -141,6 +141,20 @@ def command_execute(args: adsk.core.CommandEventArgs):
         arcs.addFillet(line5, line5.endSketchPoint.geometry, line6, line6.startSketchPoint.geometry, fillet_radius_input)
         arcs.addFillet(line6, line6.endSketchPoint.geometry, line1, line1.startSketchPoint.geometry, fillet_radius_input)
 
+        # Get the profile defined by the hexagon and its offset
+        prof = sketch.profiles.item(0)
+
+        # Create an extrusion input
+        extrudes = root_comp.features.extrudeFeatures
+        ext_input = extrudes.createInput(prof, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
+
+        # Define the extent of the extrusion
+        distance = adsk.core.ValueInput.createByReal(thickness_input)
+        ext_input.setDistanceExtent(False, distance)
+
+        # Create the extrusion
+        extrude = extrudes.add(ext_input)
+
         ui.messageBox(f'Created')
 
     except:
