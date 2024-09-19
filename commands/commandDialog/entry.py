@@ -91,8 +91,6 @@ def command_execute(args: adsk.core.CommandEventArgs):
     inputs = args.command.commandInputs
     thickness_input = inputs.itemById('thickness_input').value
     size_input = inputs.itemById('size_input').value
-    height_input = inputs.itemById('height_input').value
-    hole_size_input = inputs.itemById('hole_size_input').value
     fillet_radius_input = inputs.itemById('fillet_radius_input').value  # Fillet radius input
 
     try:
@@ -118,16 +116,31 @@ def command_execute(args: adsk.core.CommandEventArgs):
         line5 = lines.addByTwoPoints(p5, p6)
         line6 = lines.addByTwoPoints(p6, p1)
         
-        entities = adsk.core.ObjectCollection.create()
-        entities.add(line1)
-        entities.add(line2)
-        entities.add(line3)
-        entities.add(line4)
-        entities.add(line5)
-        entities.add(line6)
+        # Calculate offset points
+        offset_p1 = adsk.core.Point3D.create(p1.x - thickness_input / 3 ** .5, p1.y - thickness_input, 0)
+        offset_p2 = adsk.core.Point3D.create(p2.x + thickness_input / 3 ** .5, p2.y - thickness_input, 0)
+        offset_p3 = adsk.core.Point3D.create(p3.x + thickness_input * 2 / 3 ** .5, p3.y, 0)
+        offset_p4 = adsk.core.Point3D.create(p4.x + thickness_input / 3 ** .5, p4.y + thickness_input, 0)
+        offset_p5 = adsk.core.Point3D.create(p5.x - thickness_input / 3 ** .5, p5.y + thickness_input, 0)
+        offset_p6 = adsk.core.Point3D.create(p6.x - thickness_input * 2 / 3 ** .5, p6.y, 0)
         
-        offset = sketch.offset(entities, adsk.core.Point3D.create(-1, 0, 0), thickness_input)
-        
+        # create lines of offset hex
+        offset_line1 = lines.addByTwoPoints(offset_p1, offset_p2)
+        offset_line2 = lines.addByTwoPoints(offset_p2, offset_p3)
+        offset_line3 = lines.addByTwoPoints(offset_p3, offset_p4)
+        offset_line4 = lines.addByTwoPoints(offset_p4, offset_p5)
+        offset_line5 = lines.addByTwoPoints(offset_p5, offset_p6)
+        offset_line6 = lines.addByTwoPoints(offset_p6, offset_p1)
+
+        # Add fillets to the hexagon corners
+        arcs = sketch.sketchCurves.sketchArcs
+        arcs.addFillet(line1, line1.endSketchPoint.geometry, line2, line2.startSketchPoint.geometry, fillet_radius_input)
+        arcs.addFillet(line2, line2.endSketchPoint.geometry, line3, line3.startSketchPoint.geometry, fillet_radius_input)
+        arcs.addFillet(line3, line3.endSketchPoint.geometry, line4, line4.startSketchPoint.geometry, fillet_radius_input)
+        arcs.addFillet(line4, line4.endSketchPoint.geometry, line5, line5.startSketchPoint.geometry, fillet_radius_input)
+        arcs.addFillet(line5, line5.endSketchPoint.geometry, line6, line6.startSketchPoint.geometry, fillet_radius_input)
+        arcs.addFillet(line6, line6.endSketchPoint.geometry, line1, line1.startSketchPoint.geometry, fillet_radius_input)
+
         ui.messageBox(f'Created')
 
     except:
