@@ -95,21 +95,25 @@ def command_execute(args: adsk.core.CommandEventArgs):
     hole_size_input = inputs.itemById('hole_size_input').value
 
     try:
+        # Get root component
         sketches = root_comp.sketches
         xyPlane = root_comp.xYConstructionPlane
         sketch = sketches.add(xyPlane)
 
         lines = sketch.sketchCurves.sketchLines
 
+        # Update the half-size and triangle height
         half_size = size_input / 2.0
         triangle_height = (size_input * (3 ** 0.5)) / 2.0
 
-        # Define the triangle points
-        p1 = adsk.core.Point3D.create(-half_size, 0, 0)
-        p2 = adsk.core.Point3D.create(half_size, 0, 0)
-        p3 = adsk.core.Point3D.create(0, triangle_height, 0)
+        # Move the bottom-left corner (p1) to the origin (Z-axis), (0, 0)
+        p1 = adsk.core.Point3D.create(0, 0, 0)  # Bottom-left corner on the Z-axis
 
-        # Draw triangle
+        # Calculate the other two points relative to p1
+        p2 = adsk.core.Point3D.create(size_input, 0, 0)  # Bottom-right corner
+        p3 = adsk.core.Point3D.create(half_size, triangle_height, 0)  # Top point of the triangle
+
+        # Draw the triangle
         line1 = lines.addByTwoPoints(p1, p2)
         line2 = lines.addByTwoPoints(p2, p3)
         line3 = lines.addByTwoPoints(p3, p1)
@@ -120,7 +124,7 @@ def command_execute(args: adsk.core.CommandEventArgs):
         entities.add(line2)
         entities.add(line3)
 
-        point_inside = adsk.core.Point3D.create(0, triangle_height / 3.0, 0)
+        point_inside = adsk.core.Point3D.create(half_size, triangle_height / 3.0, 0)
         offsetCurves = sketch.offset(entities, point_inside, thickness_input)
 
         # Create circles at the triangle's vertices for holes
@@ -150,9 +154,27 @@ def command_execute(args: adsk.core.CommandEventArgs):
         # Create the extrusion
         extrude_feature = extrudes.add(extInput)
 
+        # Create a circular pattern of the extrusion
+        circular_patterns = root_comp.features.circularPatternFeatures
+        entities_for_pattern = adsk.core.ObjectCollection.create()
+        entities_for_pattern.add(extrude_feature)
+
+        # Define the axis for the pattern (Z-axis for circular pattern in XY plane)
+        z_axis = root_comp.zConstructionAxis
+
+        # Create the circular pattern input
+        pattern_input = circular_patterns.createInput(entities_for_pattern, z_axis)
+        pattern_input.quantity = adsk.core.ValueInput.createByReal(6)  # 6 triangles
+        pattern_input.totalAngle = adsk.core.ValueInput.createByString('360 deg')  # Full circle
+        pattern_input.isSymmetric = False
+
+        # Add the circular pattern feature
+        circular_patterns.add(pattern_input)
+
     except:
         if ui:
             ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
+
 
 
 
