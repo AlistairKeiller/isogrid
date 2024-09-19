@@ -175,16 +175,20 @@ def command_execute(args: adsk.core.CommandEventArgs):
 
         # Iterate through all profiles and extrude those with an area equal to hex_area
         extrudes = root_comp.features.extrudeFeatures
+        combined_profiles = adsk.core.ObjectCollection.create()
         for profile in sketch.profiles:
             if abs(profile.areaProperties().area - hex_area) < 1e-1:  # Allow for floating point precision issues
-                ext_input = extrudes.createInput(profile, adsk.fusion.FeatureOperations.CutFeatureOperation)
+                combined_profiles.add(profile)
 
-                # Define the extent of the extrusion to go downwards
-                distance = adsk.core.ValueInput.createByReal(-height_input)
-                ext_input.setDistanceExtent(False, distance)
+        if combined_profiles.count > 0:
+            ext_input = extrudes.createInput(combined_profiles, adsk.fusion.FeatureOperations.CutFeatureOperation)
 
-                # Create the extrusion
-                extrudes.add(ext_input)
+            # Define the extent of the extrusion to go downwards
+            distance = adsk.core.ValueInput.createByReal(-height_input)
+            ext_input.setDistanceExtent(False, distance)
+
+            # Create the extrusion
+            extrudes.add(ext_input)
 
         ui.messageBox(f'Created')
 
