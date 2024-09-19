@@ -115,22 +115,6 @@ def command_execute(args: adsk.core.CommandEventArgs):
         line4 = lines.addByTwoPoints(p4, p5)
         line5 = lines.addByTwoPoints(p5, p6)
         line6 = lines.addByTwoPoints(p6, p1)
-        
-        # Calculate offset points
-        offset_p1 = adsk.core.Point3D.create(p1.x - thickness_input / 3 ** .5, p1.y - thickness_input, 0)
-        offset_p2 = adsk.core.Point3D.create(p2.x + thickness_input / 3 ** .5, p2.y - thickness_input, 0)
-        offset_p3 = adsk.core.Point3D.create(p3.x + thickness_input * 2 / 3 ** .5, p3.y, 0)
-        offset_p4 = adsk.core.Point3D.create(p4.x + thickness_input / 3 ** .5, p4.y + thickness_input, 0)
-        offset_p5 = adsk.core.Point3D.create(p5.x - thickness_input / 3 ** .5, p5.y + thickness_input, 0)
-        offset_p6 = adsk.core.Point3D.create(p6.x - thickness_input * 2 / 3 ** .5, p6.y, 0)
-        
-        # create lines of offset hex
-        offset_line1 = lines.addByTwoPoints(offset_p1, offset_p2)
-        offset_line2 = lines.addByTwoPoints(offset_p2, offset_p3)
-        offset_line3 = lines.addByTwoPoints(offset_p3, offset_p4)
-        offset_line4 = lines.addByTwoPoints(offset_p4, offset_p5)
-        offset_line5 = lines.addByTwoPoints(offset_p5, offset_p6)
-        offset_line6 = lines.addByTwoPoints(offset_p6, offset_p1)
 
         # Add fillets to the hexagon corners
         arcs = sketch.sketchCurves.sketchArcs
@@ -146,7 +130,7 @@ def command_execute(args: adsk.core.CommandEventArgs):
 
         # Create an extrusion input
         extrudes = root_comp.features.extrudeFeatures
-        ext_input = extrudes.createInput(prof, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
+        ext_input = extrudes.createInput(prof, adsk.fusion.FeatureOperations.CutFeatureOperation)
 
         # Define the extent of the extrusion
         distance = adsk.core.ValueInput.createByReal(thickness_input)
