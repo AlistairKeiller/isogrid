@@ -167,7 +167,7 @@ def command_execute(args: adsk.core.CommandEventArgs):
                 current_x += size_input * 3 + thickness_input  # Adjust spacing between hexagons
 
             # Move to the next row of hexagons
-            current_y += size_input * 3 ** 0.5 + thickness_input  # Adjust vertical spacing
+            current_y += size_input * 3 ** 0.5 / 2 + thickness_input  # Adjust vertical spacing
             row_index += 1  # Increase the row index
 
 
