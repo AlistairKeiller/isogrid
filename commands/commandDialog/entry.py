@@ -76,7 +76,7 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
 
     # Create value input fields for wall thickness, unit length, etc.
     defaultLengthUnits = app.activeProduct.unitsManager.defaultLengthUnits
-    inputs.addValueInput('thickness_input', 'Wall Thickness', defaultLengthUnits, adsk.core.ValueInput.createByReal(0.1))
+    inputs.addValueInput('thickness_input', 'Wall Thickness', defaultLengthUnits, adsk.core.ValueInput.createByReal(1.0))
     inputs.addValueInput('size_input', 'Triangle Size', defaultLengthUnits, adsk.core.ValueInput.createByReal(10.0))
     inputs.addValueInput('height_input', 'Grid Height', defaultLengthUnits, adsk.core.ValueInput.createByReal(1.0))
 
@@ -98,10 +98,6 @@ def command_execute(args: adsk.core.CommandEventArgs):
 
     # Begin code to create the triangle
     try:
-        # Get the root component of the active design
-        design = adsk.fusion.Design.cast(app.activeProduct)
-        root_comp = design.rootComponent
-
         # Create a new sketch on the XY plane
         sketches = root_comp.sketches
         xyPlane = root_comp.xYConstructionPlane
@@ -134,7 +130,7 @@ def command_execute(args: adsk.core.CommandEventArgs):
         offsetCurves = sketch.offset(
             entities,
             point_inside,
-            -thickness_input  # Negative to offset inwards
+            thickness_input  # offset inwards
         )
 
         # Now we have two profiles: the outer and inner triangle
