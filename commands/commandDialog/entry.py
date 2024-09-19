@@ -79,6 +79,7 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
     inputs.addValueInput('thickness_input', 'Wall Thickness', defaultLengthUnits, adsk.core.ValueInput.createByReal(1.0))
     inputs.addValueInput('size_input', 'Triangle Size', defaultLengthUnits, adsk.core.ValueInput.createByReal(10.0))
     inputs.addValueInput('height_input', 'Grid Height', defaultLengthUnits, adsk.core.ValueInput.createByReal(1.0))
+    inputs.addValueInput('hole_size_input', 'Hole Diameter', defaultLengthUnits, adsk.core.ValueInput.createByReal(1.0))
 
     # Connect to the events that are needed by this command.
     futil.add_handler(args.command.execute, command_execute, local_handlers=local_handlers)
@@ -87,57 +88,49 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
 def command_execute(args: adsk.core.CommandEventArgs):
     futil.log(f'{CMD_NAME} Command Execute Event')
 
-    # Get the inputs
     inputs = args.command.commandInputs
     thickness_input = inputs.itemById('thickness_input').value
     size_input = inputs.itemById('size_input').value
     height_input = inputs.itemById('height_input').value
+    hole_size_input = inputs.itemById('hole_size_input').value
 
-    # Log and display message
-    futil.log(f'{CMD_NAME} Isogrid Generated')
-
-    # Begin code to create the triangle
     try:
-        # Create a new sketch on the XY plane
         sketches = root_comp.sketches
         xyPlane = root_comp.xYConstructionPlane
         sketch = sketches.add(xyPlane)
 
-        # Draw an equilateral triangle with side length size_input
         lines = sketch.sketchCurves.sketchLines
 
-        # Calculate the points for the triangle
         half_size = size_input / 2.0
         triangle_height = (size_input * (3 ** 0.5)) / 2.0
 
+        # Define the triangle points
         p1 = adsk.core.Point3D.create(-half_size, 0, 0)
         p2 = adsk.core.Point3D.create(half_size, 0, 0)
         p3 = adsk.core.Point3D.create(0, triangle_height, 0)
 
+        # Draw triangle
         line1 = lines.addByTwoPoints(p1, p2)
         line2 = lines.addByTwoPoints(p2, p3)
         line3 = lines.addByTwoPoints(p3, p1)
 
-        # Offset the triangle inwards by wall thickness
+        # Offset triangle by wall thickness
         entities = adsk.core.ObjectCollection.create()
         entities.add(line1)
         entities.add(line2)
         entities.add(line3)
 
-        # Use a Point3D for the offset direction (center of the triangle)
         point_inside = adsk.core.Point3D.create(0, triangle_height / 3.0, 0)
+        offsetCurves = sketch.offset(entities, point_inside, thickness_input)
 
-        offsetCurves = sketch.offset(
-            entities,
-            point_inside,
-            thickness_input  # offset inwards
-        )
+        # Create circles at the triangle's vertices for holes
+        circles = sketch.sketchCurves.sketchCircles
+        circles.addByCenterRadius(p1, hole_size_input / 2.0)
+        circles.addByCenterRadius(p2, hole_size_input / 2.0)
+        circles.addByCenterRadius(p3, hole_size_input / 2.0)
 
-        # Now we have two profiles: the outer and inner triangle
-        # We need to get the profile between them
+        # Get the profile with two loops for extrusion
         profs = sketch.profiles
-
-        # Find the profile with two loops (outer and inner)
         prof = None
         for profile in profs:
             if profile.profileLoops.count == 2:
@@ -148,20 +141,19 @@ def command_execute(args: adsk.core.CommandEventArgs):
             ui.messageBox('Failed to get the profile for extrusion')
             return
 
-        # Create an extrusion input
         extrudes = root_comp.features.extrudeFeatures
         extInput = extrudes.createInput(prof, adsk.fusion.FeatureOperations.NewBodyFeatureOperation)
 
-        # Define the distance extent
         distance = adsk.core.ValueInput.createByReal(height_input)
         extInput.setDistanceExtent(False, distance)
 
         # Create the extrusion
-        extrudes.add(extInput)
+        extrude_feature = extrudes.add(extInput)
 
     except:
         if ui:
             ui.messageBox('Failed:\n{}'.format(traceback.format_exc()))
+
 
 
 # This event handler is called when the command terminates.
