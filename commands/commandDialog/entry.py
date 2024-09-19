@@ -135,7 +135,7 @@ def command_execute(args: adsk.core.CommandEventArgs):
             
             # Offset every other row to achieve the staggered honeycomb effect
             if row_index % 2 == 1:
-                current_x += size_input * 1.5  # Shift half the width of the hexagon
+                current_x += size_input * 1.5 + thickness_input / 2  # Shift half the width of the hexagon
             
             while current_x < max_point.x:
                 # create points of hex starting from the lower left corner of the bounding box
