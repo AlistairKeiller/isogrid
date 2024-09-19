@@ -1,3 +1,4 @@
+import math
 import traceback
 import adsk.core
 import adsk.fusion
@@ -11,9 +12,9 @@ design = app.activeProduct
 root_comp = design.rootComponent
 
 # TODO *** Specify the command identity information. ***
-CMD_ID = f'{config.COMPANY_NAME}_{config.ADDIN_NAME}_isogrid_cmd'
-CMD_NAME = 'IsoGrid Generator'
-CMD_Description = 'Generate an IsoGrid structure'
+CMD_ID = f'{config.COMPANY_NAME}_{config.ADDIN_NAME}_hexgrid_cmd'
+CMD_NAME = 'HexGrid Generator'
+CMD_Description = 'Generate an HexGrid structure'
 
 # Specify that the command will be promoted to the panel.
 IS_PROMOTED = True
@@ -170,19 +171,20 @@ def command_execute(args: adsk.core.CommandEventArgs):
             current_y += (size_input * 3 ** 0.5 + thickness_input) / 2  # Adjust vertical spacing
             row_index += 1  # Increase the row index
 
-        hex_area = (3 * (3 ** 0.5) * (size_input ** 2)) / 2
-        prof = max((p for p in sketch.profiles if p.areaProperties().area < hex_area), key=lambda p: p.areaProperties().area)
+        hex_area = (3 * math.sqrt(3) / 2) * (size_input ** 2)
 
-        # Create an extrusion input
+        # Iterate through all profiles and extrude those with an area equal to hex_area
         extrudes = root_comp.features.extrudeFeatures
-        ext_input = extrudes.createInput(prof, adsk.fusion.FeatureOperations.CutFeatureOperation)
+        for profile in sketch.profiles:
+            if abs(profile.areaProperties().area - hex_area) < 1e-1:  # Allow for floating point precision issues
+                ext_input = extrudes.createInput(profile, adsk.fusion.FeatureOperations.CutFeatureOperation)
 
-        # Define the extent of the extrusion to go downwards
-        distance = adsk.core.ValueInput.createByReal(-height_input)
-        ext_input.setDistanceExtent(False, distance)
+                # Define the extent of the extrusion to go downwards
+                distance = adsk.core.ValueInput.createByReal(-height_input)
+                ext_input.setDistanceExtent(False, distance)
 
-        # Create the extrusion
-        extrude = extrudes.add(ext_input)
+                # Create the extrusion
+                extrudes.add(ext_input)
 
         ui.messageBox(f'Created')
 
