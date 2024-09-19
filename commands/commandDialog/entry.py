@@ -107,9 +107,9 @@ def command_execute(args: adsk.core.CommandEventArgs):
         sketch = sketches.add(face_selection)
 
         lines = sketch.sketchCurves.sketchLines
-
-        # Get the lower left corner of the bounding box
-        min_point = bounding_box.minPoint
+        
+        # Get the lower left corner of the bounding box relative to the sketch plane
+        min_point = sketch.modelToSketchSpace(bounding_box.minPoint)
 
         # create points of hex starting from the lower left corner of the bounding box
         p1 = adsk.core.Point3D.create(min_point.x + size_input / 2, min_point.y, 0)
