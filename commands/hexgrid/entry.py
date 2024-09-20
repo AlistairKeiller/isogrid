@@ -102,78 +102,23 @@ def command_execute(args: adsk.core.CommandEventArgs):
     # Get the selected face
     face_selection = inputs.itemById('face_selection').selection(0).entity
     bounding_box = face_selection.boundingBox
+    evaluator = face_selection.evaluator
 
     try:
         sketches = root_comp.sketches
         sketch = sketches.add(face_selection)
         lines = sketch.sketchCurves.sketchLines
+        points = sketch.sketchPoints
 
         # Find the minX and minY of every profile in the existing sketch
         min_point = sketch.modelToSketchSpace(bounding_box.minPoint)
         max_point = sketch.modelToSketchSpace(bounding_box.maxPoint)
-
-        # Create a honeycomb pattern of hexagons spaced by wall_thickness up to max_point
-        current_y = min_point.y - (size_input * 3 ** 0.5 + thickness_input) / 2 + thickness_input
-        row_index = -1  # keep track of which row we are in
-
-        while current_y < max_point.y:
-            current_x = min_point.x + thickness_input
-            
-            # Offset every other row to achieve the staggered honeycomb effect
-            if row_index % 2 == 1:
-                current_x += (size_input * 3 + thickness_input * 3 ** 0.5) / 2  # Shift half the width of the hexagon
-
-            while current_x < max_point.x:
-                # create points of hex starting from the lower left corner of the bounding box
-                p1 = adsk.core.Point3D.create(current_x + size_input / 2, current_y, 0)
-                p2 = adsk.core.Point3D.create(current_x + size_input * 1.5, current_y, 0)
-                p3 = adsk.core.Point3D.create(current_x + size_input * 2, current_y + size_input * 3 ** 0.5 / 2, 0)
-                p4 = adsk.core.Point3D.create(current_x + size_input * 1.5, current_y + size_input * 3 ** 0.5, 0)
-                p5 = adsk.core.Point3D.create(current_x + size_input / 2, current_y + size_input * 3 ** 0.5, 0)
-                p6 = adsk.core.Point3D.create(current_x, current_y + size_input * 3 ** 0.5 / 2, 0)
-
-                # create lines of hex
-                line1 = lines.addByTwoPoints(p1, p2)
-                line2 = lines.addByTwoPoints(p2, p3)
-                line3 = lines.addByTwoPoints(p3, p4)
-                line4 = lines.addByTwoPoints(p4, p5)
-                line5 = lines.addByTwoPoints(p5, p6)
-                line6 = lines.addByTwoPoints(p6, p1)
-
-                # Add fillets to the hexagon corners
-                arcs = sketch.sketchCurves.sketchArcs
-                arcs.addFillet(line1, line1.endSketchPoint.geometry, line2, line2.startSketchPoint.geometry, fillet_radius_input)
-                arcs.addFillet(line2, line2.endSketchPoint.geometry, line3, line3.startSketchPoint.geometry, fillet_radius_input)
-                arcs.addFillet(line3, line3.endSketchPoint.geometry, line4, line4.startSketchPoint.geometry, fillet_radius_input)
-                arcs.addFillet(line4, line4.endSketchPoint.geometry, line5, line5.startSketchPoint.geometry, fillet_radius_input)
-                arcs.addFillet(line5, line5.endSketchPoint.geometry, line6, line6.startSketchPoint.geometry, fillet_radius_input)
-                arcs.addFillet(line6, line6.endSketchPoint.geometry, line1, line1.startSketchPoint.geometry, fillet_radius_input)
-
-                # Move to the next hexagon position
-                current_x += size_input * 3 + thickness_input * 3 ** 0.5  # Adjust spacing between hexagons
-
-            # Move to the next row of hexagons
-            current_y += (size_input * 3 ** 0.5 + thickness_input) / 2  # Adjust vertical spacing
-            row_index += 1  # Increase the row index
-
-        hex_area = (3 * math.sqrt(3) / 2) * (size_input ** 2)
-
-        # Iterate through all profiles and extrude those with an area equal to hex_area
-        extrudes = root_comp.features.extrudeFeatures
-        combined_profiles = adsk.core.ObjectCollection.create()
-        for profile in sketch.profiles:
-            if abs(profile.areaProperties().area - hex_area) < 1e-1:  # Allow for floating point precision issues
-                combined_profiles.add(profile)
-
-        if combined_profiles.count > 0:
-            ext_input = extrudes.createInput(combined_profiles, adsk.fusion.FeatureOperations.CutFeatureOperation)
-
-            # Define the extent of the extrusion to go downwards
-            distance = adsk.core.ValueInput.createByReal(-height_input)
-            ext_input.setDistanceExtent(False, distance)
-
-            # Create the extrusion
-            extrudes.add(ext_input)
+        center_point = adsk.core.Point3D.create((min_point.x + max_point.x) / 2, (min_point.y + max_point.y) / 2, 0)
+        
+        # gird of points centered at center_point=
+        for x in range(math.floor((max_point.x-min_point.x)/size_input)+1):
+            for y in range(math.floor((max_point.y-min_point.y)/size_input)+1):
+                points.add(adsk.core.Point3D.create(min_point.x+x*size_input+(max_point.x-min_point.x)%size_input/2, min_point.y+y*size_input+(max_point.y-min_point.y)%size_input/2, 0))
 
         ui.messageBox(f'Created')
 
