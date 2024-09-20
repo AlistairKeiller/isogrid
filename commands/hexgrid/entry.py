@@ -132,6 +132,11 @@ import adsk.core
 import adsk.fusion
 import traceback
 
+def draw_triangle(sketch, point1, point2, point3):
+    lines = sketch.sketchCurves.sketchLines
+    lines.addByTwoPoints(point1, point2)
+    lines.addByTwoPoints(point2, point3)
+    lines.addByTwoPoints(point3, point1)
 
 def command_execute(args: adsk.core.CommandEventArgs):
     futil.log(f"{CMD_NAME} Command Execute Event")
@@ -193,21 +198,39 @@ def command_execute(args: adsk.core.CommandEventArgs):
         # Create triangles by connecting adjacent points
         for x in range(len(point_grid) - 1):
             for y in range(len(point_grid[x]) - 1):
-                if point_grid[x][y] and point_grid[x + 1][y] and point_grid[x][y + 1]:
-                    # First triangle
-                    lines.addByTwoPoints(point_grid[x][y], point_grid[x + 1][y])
-                    lines.addByTwoPoints(point_grid[x + 1][y], point_grid[x][y + 1])
-                    lines.addByTwoPoints(point_grid[x][y + 1], point_grid[x][y])
+                if y % 2 == 1:
+                    if point_grid[x][y] and point_grid[x + 1][y] and point_grid[x + 1][y + 1]:
+                        draw_triangle(
+                            sketch,
+                            point_grid[x][y],
+                            point_grid[x + 1][y],
+                            point_grid[x + 1][y + 1]
+                        )
 
-                if (
-                    point_grid[x + 1][y]
-                    and point_grid[x + 1][y + 1]
-                    and point_grid[x][y + 1]
-                ):
-                    # Second triangle
-                    lines.addByTwoPoints(point_grid[x + 1][y], point_grid[x + 1][y + 1])
-                    lines.addByTwoPoints(point_grid[x + 1][y + 1], point_grid[x][y + 1])
-                    lines.addByTwoPoints(point_grid[x][y + 1], point_grid[x + 1][y])
+                    if (x + 2 < len(point_grid) and
+                        point_grid[x + 1][y] and point_grid[x + 2][y + 1] and point_grid[x + 1][y + 1]):
+                        draw_triangle(
+                            sketch,
+                            point_grid[x + 1][y],
+                            point_grid[x + 2][y + 1],
+                            point_grid[x + 1][y + 1]
+                        )
+                else:
+                    if point_grid[x][y] and point_grid[x + 1][y] and point_grid[x][y + 1]:
+                        draw_triangle(
+                            sketch,
+                            point_grid[x][y],
+                            point_grid[x + 1][y],
+                            point_grid[x][y + 1]
+                        )
+
+                    if point_grid[x + 1][y] and point_grid[x + 1][y + 1] and point_grid[x][y + 1]:
+                        draw_triangle(
+                            sketch,
+                            point_grid[x + 1][y],
+                            point_grid[x + 1][y + 1],
+                            point_grid[x][y + 1]
+                        )
 
         ui.messageBox(f"Created triangles")
 
