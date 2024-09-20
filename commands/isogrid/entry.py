@@ -146,7 +146,7 @@ def command_execute(args: adsk.core.CommandEventArgs):
             for cmd in [
                 u'Commands.Start FusionWebCommand', # show dialog
                 u'Commands.SetDouble WebWidthInput 1',
-            #     u'NuCommands.CommitCmd' # execute command
+                u'NuCommands.CommitCmd' # execute command
             ]:
                 app.executeTextCommand(cmd)
             sels.clear()
