@@ -134,9 +134,8 @@ def command_execute(args: adsk.core.CommandEventArgs):
     ).value  # Fillet radius input
 
     # Get the selected face
-    face_selection = inputs.itemById("face_selection").selection(0).entity
+    face_selection = adsk.fusion.BRepFace.cast(inputs.itemById("face_selection").selection(0).entity)
     bounding_box = face_selection.boundingBox
-    evaluator = face_selection.evaluator
 
     try:
         sketches = root_comp.sketches
@@ -164,12 +163,8 @@ def command_execute(args: adsk.core.CommandEventArgs):
                         + (max_point.y - min_point.y) % (size_input * math.sqrt(3) / 2) / 2,
                         0,
                     )
-                (returnValue, parameter) = evaluator.getParameterAtPoint(point)
-                if returnValue:
-                    if evaluator.isParameterOnFace(parameter):
-                        points.add(
-                            point
-                        )
+                if face_selection.isPointOnFace(sketch.sketchToModelSpace(point)):
+                    points.add(point)
 
         ui.messageBox(f"Created")
 
