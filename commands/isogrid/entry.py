@@ -126,6 +126,7 @@ def command_execute(args: adsk.core.CommandEventArgs):
 
         # Create the three lines at 0, 60, and 120 degrees
         angles = [0, 60, 120]
+        center_lines = []
         for angle in angles:
             rad = math.radians(angle)
             cos_angle = math.cos(rad)
@@ -136,9 +137,19 @@ def command_execute(args: adsk.core.CommandEventArgs):
             end_point = adsk.core.Point3D.create(center_x + (max_x - min_x) * cos_angle, center_y + (max_y - min_y) * sin_angle, 0)
 
             # Create the line
-            lines.addByTwoPoints(start_point, end_point)
+            center_lines.append(lines.addByTwoPoints(start_point, end_point))
         
-        
+        sels = ui.activeSelections
+        for center_line in center_lines:
+            sels.clear()
+            sels.add(center_line)
+            for cmd in [
+                u'Commands.Start FusionWebCommand', # show dialog
+                u'Commands.SetDouble WebWidthInput 1',
+            #     u'NuCommands.CommitCmd' # execute command
+            ]:
+                app.executeTextCommand(cmd)
+            sels.clear()
 
         ui.messageBox(f'Created')
 
