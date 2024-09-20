@@ -101,31 +101,16 @@ def command_execute(args: adsk.core.CommandEventArgs):
 
     # Get the selected face
     face_selection = inputs.itemById('face_selection').selection(0).entity
+    bounding_box = face_selection.boundingBox
 
     try:
         sketches = root_comp.sketches
         sketch = sketches.add(face_selection)
-
         lines = sketch.sketchCurves.sketchLines
-        
-        # Find the minX and minY of every profile in the existing sketch
-        min_x = float('inf')
-        min_y = float('inf')
-        max_x = float('-inf')
-        max_y = float('-inf')
-        for profile in sketch.profiles:
-            for loop in profile.profileLoops:
-                for profile_curve in loop.profileCurves:
-                    start_point = profile_curve.geometry.startPoint
-                    end_point = profile_curve.geometry.endPoint
-                    min_x = min(min_x, start_point.x, end_point.x)
-                    min_y = min(min_y, start_point.y, end_point.y)
-                    max_x = max(max_x, start_point.x, end_point.x)
-                    max_y = max(max_y, start_point.y, end_point.y)
 
-        # Use the min_x, min_y, max_x, and max_y as the bounding points
-        min_point = adsk.core.Point3D.create(min_x, min_y, 0)
-        max_point = adsk.core.Point3D.create(max_x, max_y, 0)
+        # Find the minX and minY of every profile in the existing sketch
+        min_point = sketch.modelToSketchSpace(bounding_box.minPoint)
+        max_point = sketch.modelToSketchSpace(bounding_box.maxPoint)
 
         # Create a honeycomb pattern of hexagons spaced by wall_thickness up to max_point
         current_y = min_point.y - (size_input * 3 ** 0.5 + thickness_input) / 2 + thickness_input
