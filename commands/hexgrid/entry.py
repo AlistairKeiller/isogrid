@@ -154,8 +154,7 @@ def command_execute(args: adsk.core.CommandEventArgs):
         # gird of points centered at center_point
         for x in range(math.floor((max_point.x - min_point.x) / size_input) + 1):
             for y in range(math.floor((max_point.y - min_point.y) / (size_input * math.sqrt(3) / 2)) + 1):
-                points.add(
-                    adsk.core.Point3D.create(
+                point = adsk.core.Point3D.create(
                         min_point.x
                         + x * size_input
                         + (max_point.x - min_point.x) % size_input / 2
@@ -165,7 +164,12 @@ def command_execute(args: adsk.core.CommandEventArgs):
                         + (max_point.y - min_point.y) % (size_input * math.sqrt(3) / 2) / 2,
                         0,
                     )
-                )
+                (returnValue, parameter) = evaluator.getParameterAtPoint(point)
+                if returnValue:
+                    if evaluator.isParameterOnFace(parameter):
+                        points.add(
+                            point
+                        )
 
         ui.messageBox(f"Created")
 
