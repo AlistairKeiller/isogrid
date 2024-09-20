@@ -101,8 +101,44 @@ def command_execute(args: adsk.core.CommandEventArgs):
 
     # Get the selected face
     face_selection = inputs.itemById('face_selection').selection(0).entity
+    bounding_box = face_selection.boundingBox
 
     try:
+        sketches = root_comp.sketches
+        sketch = sketches.add(face_selection)
+
+        lines = sketch.sketchCurves.sketchLines
+        
+        # Get the bounding box corners in the sketch plane
+        min_point = sketch.modelToSketchSpace(bounding_box.minPoint)
+        max_point = sketch.modelToSketchSpace(bounding_box.maxPoint)
+
+        # Extract min and max x and y values
+        min_x = min_point.x
+        max_x = max_point.x
+        min_y = min_point.y
+        max_y = max_point.y
+        
+        # Calculate the center point of the rectangle
+        center_x = (min_x + max_x) / 2
+        center_y = (min_y + max_y) / 2
+        center_point = adsk.core.Point3D.create(center_x, center_y, 0)
+
+        # Create the three lines at 0, 60, and 120 degrees
+        angles = [0, 60, 120]
+        for angle in angles:
+            rad = math.radians(angle)
+            cos_angle = math.cos(rad)
+            sin_angle = math.sin(rad)
+
+            # Calculate the end points of the line
+            start_point = adsk.core.Point3D.create(center_x - (max_x - min_x) * cos_angle, center_y - (max_y - min_y) * sin_angle, 0)
+            end_point = adsk.core.Point3D.create(center_x + (max_x - min_x) * cos_angle, center_y + (max_y - min_y) * sin_angle, 0)
+
+            # Create the line
+            lines.addByTwoPoints(start_point, end_point)
+        
+        
 
         ui.messageBox(f'Created')
 
