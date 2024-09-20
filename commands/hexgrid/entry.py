@@ -121,23 +121,6 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
         args.command.destroy, command_destroy, local_handlers=local_handlers
     )
 
-
-import math
-import adsk.core
-import adsk.fusion
-import traceback
-
-import math
-import adsk.core
-import adsk.fusion
-import traceback
-
-def draw_triangle(sketch, point1, point2, point3):
-    lines = sketch.sketchCurves.sketchLines
-    lines.addByTwoPoints(point1, point2)
-    lines.addByTwoPoints(point2, point3)
-    lines.addByTwoPoints(point3, point1)
-
 def command_execute(args: adsk.core.CommandEventArgs):
     futil.log(f"{CMD_NAME} Command Execute Event")
 
@@ -145,9 +128,7 @@ def command_execute(args: adsk.core.CommandEventArgs):
     thickness_input = inputs.itemById("thickness_input").value
     size_input = inputs.itemById("size_input").value
     height_input = inputs.itemById("height_input").value
-    fillet_radius_input = inputs.itemById(
-        "fillet_radius_input"
-    ).value  # Fillet radius input
+    fillet_radius_input = inputs.itemById("fillet_radius_input").value
 
     # Get the selected face
     face_selection = adsk.fusion.BRepFace.cast(
@@ -200,44 +181,84 @@ def command_execute(args: adsk.core.CommandEventArgs):
             for y in range(len(point_grid[x]) - 1):
                 if y % 2 == 1:
                     if point_grid[x][y] and point_grid[x + 1][y] and point_grid[x + 1][y + 1]:
-                        draw_triangle(
+                        draw_shrunken_triangle(
                             sketch,
                             point_grid[x][y],
                             point_grid[x + 1][y],
-                            point_grid[x + 1][y + 1]
+                            point_grid[x + 1][y + 1],
+                            thickness_input
                         )
 
                     if (x + 2 < len(point_grid) and
                         point_grid[x + 1][y] and point_grid[x + 2][y + 1] and point_grid[x + 1][y + 1]):
-                        draw_triangle(
+                        draw_shrunken_triangle(
                             sketch,
                             point_grid[x + 1][y],
                             point_grid[x + 2][y + 1],
-                            point_grid[x + 1][y + 1]
+                            point_grid[x + 1][y + 1],
+                            thickness_input
                         )
                 else:
                     if point_grid[x][y] and point_grid[x + 1][y] and point_grid[x][y + 1]:
-                        draw_triangle(
+                        draw_shrunken_triangle(
                             sketch,
                             point_grid[x][y],
                             point_grid[x + 1][y],
-                            point_grid[x][y + 1]
+                            point_grid[x][y + 1],
+                            thickness_input
                         )
 
                     if point_grid[x + 1][y] and point_grid[x + 1][y + 1] and point_grid[x][y + 1]:
-                        draw_triangle(
+                        draw_shrunken_triangle(
                             sketch,
                             point_grid[x + 1][y],
                             point_grid[x + 1][y + 1],
-                            point_grid[x][y + 1]
+                            point_grid[x][y + 1],
+                            thickness_input
                         )
 
-        ui.messageBox(f"Created triangles")
+        ui.messageBox(f"Created shrunken triangles")
 
     except:
         if ui:
             ui.messageBox("Failed:\n{}".format(traceback.format_exc()))
 
+def draw_shrunken_triangle(sketch, p1, p2, p3, thickness):
+    # Convert points to sketch space
+    sp1 = p1.geometry
+    sp2 = p2.geometry
+    sp3 = p3.geometry
+    
+    # Calculate the centroid of the triangle
+    centroid = adsk.core.Point3D.create(
+        (sp1.x + sp2.x + sp3.x) / 3,
+        (sp1.y + sp2.y + sp3.y) / 3,
+        0
+    )
+
+    # Function to move a point towards the centroid by the thickness
+    def shrink_point(point, centroid, thickness):
+        direction_vector = adsk.core.Vector3D.create(
+            centroid.x - point.x,
+            centroid.y - point.y,
+            0
+        )
+        direction_vector.normalize()
+        return adsk.core.Point3D.create(
+            point.x + direction_vector.x * thickness,
+            point.y + direction_vector.y * thickness,
+            0
+        )
+
+    # Shrink the points
+    new_p1 = shrink_point(sp1, centroid, thickness)
+    new_p2 = shrink_point(sp2, centroid, thickness)
+    new_p3 = shrink_point(sp3, centroid, thickness)
+
+    # Draw the triangle
+    sketch.sketchCurves.sketchLines.addByTwoPoints(new_p1, new_p2)
+    sketch.sketchCurves.sketchLines.addByTwoPoints(new_p2, new_p3)
+    sketch.sketchCurves.sketchLines.addByTwoPoints(new_p3, new_p1)
 
 # This event handler is called when the command terminates.
 def command_destroy(args: adsk.core.CommandEventArgs):
