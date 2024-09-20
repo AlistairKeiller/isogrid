@@ -77,7 +77,7 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
     # Create value input fields for wall thickness, unit length, etc.
     defaultLengthUnits = app.activeProduct.unitsManager.defaultLengthUnits
     inputs.addValueInput('thickness_input', 'Wall Thickness', defaultLengthUnits, adsk.core.ValueInput.createByReal(1.0))
-    inputs.addValueInput('size_input', 'Triangle Size', defaultLengthUnits, adsk.core.ValueInput.createByReal(10.0))
+    inputs.addValueInput('size_input', 'Hexagon Size', defaultLengthUnits, adsk.core.ValueInput.createByReal(10.0))
     inputs.addValueInput('height_input', 'Extrude Height', defaultLengthUnits, adsk.core.ValueInput.createByReal(1.0))
     inputs.addValueInput('fillet_radius_input', 'Fillet Radius', defaultLengthUnits, adsk.core.ValueInput.createByReal(0.5))  # New input for fillet radius
 
