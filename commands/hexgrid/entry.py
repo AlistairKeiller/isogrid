@@ -122,6 +122,17 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
     )
 
 
+import math
+import adsk.core
+import adsk.fusion
+import traceback
+
+import math
+import adsk.core
+import adsk.fusion
+import traceback
+
+
 def command_execute(args: adsk.core.CommandEventArgs):
     futil.log(f"{CMD_NAME} Command Execute Event")
 
@@ -134,7 +145,9 @@ def command_execute(args: adsk.core.CommandEventArgs):
     ).value  # Fillet radius input
 
     # Get the selected face
-    face_selection = adsk.fusion.BRepFace.cast(inputs.itemById("face_selection").selection(0).entity)
+    face_selection = adsk.fusion.BRepFace.cast(
+        inputs.itemById("face_selection").selection(0).entity
+    )
     bounding_box = face_selection.boundingBox
 
     try:
@@ -150,23 +163,53 @@ def command_execute(args: adsk.core.CommandEventArgs):
             (min_point.x + max_point.x) / 2, (min_point.y + max_point.y) / 2, 0
         )
 
-        # gird of points centered at center_point
-        for x in range(math.floor((max_point.x - min_point.x) / size_input) + 1):
-            for y in range(math.floor((max_point.y - min_point.y) / (size_input * math.sqrt(3) / 2)) + 1):
-                point = adsk.core.Point3D.create(
-                        min_point.x
-                        + x * size_input
-                        + (max_point.x - min_point.x) % size_input / 2
-                        + (y % 2) * size_input / 2,
-                        min_point.y
-                        + y * (size_input * math.sqrt(3) / 2)
-                        + (max_point.y - min_point.y) % (size_input * math.sqrt(3) / 2) / 2,
-                        0,
-                    )
-                if face_selection.isPointOnFace(sketch.sketchToModelSpace(point)):
-                    points.add(point)
+        # Grid size calculations
+        grid_width = math.floor((max_point.x - min_point.x) / size_input) + 1
+        grid_height = (
+            math.floor((max_point.y - min_point.y) / (size_input * math.sqrt(3) / 2))
+            + 1
+        )
 
-        ui.messageBox(f"Created")
+        # Initialize a 2D array of None
+        point_grid = [[None for _ in range(grid_height)] for _ in range(grid_width)]
+
+        # Grid of points centered at center_point
+        for x in range(grid_width):
+            for y in range(grid_height):
+                point = adsk.core.Point3D.create(
+                    min_point.x
+                    + x * size_input
+                    + (max_point.x - min_point.x) % size_input / 2
+                    + (y % 2) * size_input / 2,
+                    min_point.y
+                    + y * (size_input * math.sqrt(3) / 2)
+                    + (max_point.y - min_point.y) % (size_input * math.sqrt(3) / 2) / 2,
+                    0,
+                )
+                if face_selection.isPointOnFace(sketch.sketchToModelSpace(point)):
+                    sketch_point = points.add(point)
+                    point_grid[x][y] = sketch_point  # Initialize the point in the grid
+
+        # Create triangles by connecting adjacent points
+        for x in range(len(point_grid) - 1):
+            for y in range(len(point_grid[x]) - 1):
+                if point_grid[x][y] and point_grid[x + 1][y] and point_grid[x][y + 1]:
+                    # First triangle
+                    lines.addByTwoPoints(point_grid[x][y], point_grid[x + 1][y])
+                    lines.addByTwoPoints(point_grid[x + 1][y], point_grid[x][y + 1])
+                    lines.addByTwoPoints(point_grid[x][y + 1], point_grid[x][y])
+
+                if (
+                    point_grid[x + 1][y]
+                    and point_grid[x + 1][y + 1]
+                    and point_grid[x][y + 1]
+                ):
+                    # Second triangle
+                    lines.addByTwoPoints(point_grid[x + 1][y], point_grid[x + 1][y + 1])
+                    lines.addByTwoPoints(point_grid[x + 1][y + 1], point_grid[x][y + 1])
+                    lines.addByTwoPoints(point_grid[x][y + 1], point_grid[x + 1][y])
+
+        ui.messageBox(f"Created triangles")
 
     except:
         if ui:
