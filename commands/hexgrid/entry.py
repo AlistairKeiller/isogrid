@@ -177,6 +177,7 @@ def command_execute(args: adsk.core.CommandEventArgs):
                     point_grid[x][y] = sketch_point  # Initialize the point in the grid
 
         # Create triangles by connecting adjacent points
+        triangle_area = None
         for x in range(len(point_grid) - 1):
             for y in range(len(point_grid[x]) - 1):
                 if y % 2 == 1:
@@ -188,6 +189,13 @@ def command_execute(args: adsk.core.CommandEventArgs):
                             point_grid[x + 1][y + 1],
                             thickness_input
                         )
+                        if triangle_area is None:
+                            triangle_area = calculate_triangle_area(
+                                point_grid[x][y],
+                                point_grid[x + 1][y],
+                                point_grid[x + 1][y + 1],
+                                thickness_input
+                            )
 
                     if (x + 2 < len(point_grid) and
                         point_grid[x + 1][y] and point_grid[x + 2][y + 1] and point_grid[x + 1][y + 1]):
@@ -198,6 +206,13 @@ def command_execute(args: adsk.core.CommandEventArgs):
                             point_grid[x + 1][y + 1],
                             thickness_input
                         )
+                        if triangle_area is None:
+                            triangle_area = calculate_triangle_area(
+                                point_grid[x + 1][y],
+                                point_grid[x + 2][y + 1],
+                                point_grid[x + 1][y + 1],
+                                thickness_input
+                            )
                 else:
                     if point_grid[x][y] and point_grid[x + 1][y] and point_grid[x][y + 1]:
                         draw_shrunken_triangle(
@@ -207,6 +222,13 @@ def command_execute(args: adsk.core.CommandEventArgs):
                             point_grid[x][y + 1],
                             thickness_input
                         )
+                        if triangle_area is None:
+                            triangle_area = calculate_triangle_area(
+                                point_grid[x][y],
+                                point_grid[x + 1][y],
+                                point_grid[x][y + 1],
+                                thickness_input
+                            )
 
                     if point_grid[x + 1][y] and point_grid[x + 1][y + 1] and point_grid[x][y + 1]:
                         draw_shrunken_triangle(
@@ -216,6 +238,25 @@ def command_execute(args: adsk.core.CommandEventArgs):
                             point_grid[x][y + 1],
                             thickness_input
                         )
+                        if triangle_area is None:
+                            triangle_area = calculate_triangle_area(
+                                point_grid[x + 1][y],
+                                point_grid[x + 1][y + 1],
+                                point_grid[x][y + 1],
+                                thickness_input
+                            )
+
+        # adds every profile with area equal to shrunken triangle area to the combined_profiles collection
+        extrudes = root_comp.features.extrudeFeatures
+        combined_profiles = adsk.core.ObjectCollection.create()
+        for profile in sketch.profiles:
+            if abs(profile.areaProperties().area - triangle_area) < 1e-6:
+                combined_profiles.add(profile)
+        
+        if combined_profiles.count != 0:
+            ext_input = extrudes.createInput(combined_profiles, adsk.fusion.FeatureOperations.CutFeatureOperation)
+            ext_input.setDistanceExtent(False, adsk.core.ValueInput.createByReal(-height_input))
+            extrudes.add(ext_input)
 
         ui.messageBox(f"Created shrunken triangles")
 
@@ -223,16 +264,11 @@ def command_execute(args: adsk.core.CommandEventArgs):
         if ui:
             ui.messageBox("Failed:\n{}".format(traceback.format_exc()))
 
-def draw_shrunken_triangle(sketch, p1, p2, p3, thickness):
-    # Convert points to sketch space
-    sp1 = p1.geometry
-    sp2 = p2.geometry
-    sp3 = p3.geometry
-    
+def create_shrunken_triangle(p1, p2, p3, thickness):
     # Calculate the centroid of the triangle
     centroid = adsk.core.Point3D.create(
-        (sp1.x + sp2.x + sp3.x) / 3,
-        (sp1.y + sp2.y + sp3.y) / 3,
+        (p1.x + p2.x + p3.x) / 3,
+        (p1.y + p2.y + p3.y) / 3,
         0
     )
 
@@ -251,14 +287,33 @@ def draw_shrunken_triangle(sketch, p1, p2, p3, thickness):
         )
 
     # Shrink the points
-    new_p1 = shrink_point(sp1, centroid, thickness)
-    new_p2 = shrink_point(sp2, centroid, thickness)
-    new_p3 = shrink_point(sp3, centroid, thickness)
+    new_p1 = shrink_point(p1, centroid, thickness)
+    new_p2 = shrink_point(p2, centroid, thickness)
+    new_p3 = shrink_point(p3, centroid, thickness)
+
+    return new_p1, new_p2, new_p3
+
+def draw_shrunken_triangle(sketch, p1, p2, p3, thickness):
+    # Create shrunken triangle points
+    new_p1, new_p2, new_p3 = create_shrunken_triangle(p1.geometry, p2.geometry, p3.geometry, thickness)
 
     # Draw the triangle
     sketch.sketchCurves.sketchLines.addByTwoPoints(new_p1, new_p2)
     sketch.sketchCurves.sketchLines.addByTwoPoints(new_p2, new_p3)
     sketch.sketchCurves.sketchLines.addByTwoPoints(new_p3, new_p1)
+
+def calculate_triangle_area(p1, p2, p3, thickness):
+    # Create shrunken triangle points
+    new_p1, new_p2, new_p3 = create_shrunken_triangle(p1.geometry, p2.geometry, p3.geometry, thickness)
+
+    # Calculate the area using the shoelace formula
+    area = abs(
+        new_p1.x * (new_p2.y - new_p3.y) +
+        new_p2.x * (new_p3.y - new_p1.y) +
+        new_p3.x * (new_p1.y - new_p2.y)
+    ) / 2
+
+    return area
 
 # This event handler is called when the command terminates.
 def command_destroy(args: adsk.core.CommandEventArgs):
