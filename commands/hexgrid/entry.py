@@ -180,8 +180,7 @@ def command_execute(args: adsk.core.CommandEventArgs):
                     0,
                 )
                 if face_selection.isPointOnFace(sketch.sketchToModelSpace(point)):
-                    sketch_point = points.add(point)
-                    point_grid[x][y] = sketch_point  # Initialize the point in the grid
+                    point_grid[x][y] = points.add(point)
 
         # Create triangles by connecting adjacent points
         triangle_area = None
@@ -278,16 +277,17 @@ def command_execute(args: adsk.core.CommandEventArgs):
         root_comp.features.filletFeatures.add(fillet_input)
         
         # add hole on all points in the pointgrid
-        holes = adsk.core.ObjectCollection.create()
+        hole_points = adsk.core.ObjectCollection.create()
         for x in range(len(point_grid)):
             for y in range(len(point_grid[x])):
                 if point_grid[x][y]:
-                    holes.add(point_grid[x][y].geometry)
+                    hole_points.add(point_grid[x][y])
         
-        hole_input = root_comp.features.holeFeatures.createSimpleInput(adsk.core.ValueInput.createByReal(hole_size_input))
-        hole_input.setPositionBySketchPoints(holes)
-        hole_input.setDistanceExtent(adsk.core.ValueInput.createByReal(-height_input))
-        root_comp.features.holeFeatures.add(hole_input)
+        holes = root_comp.features.holeFeatures
+        hole_input = holes.createSimpleInput(adsk.core.ValueInput.createByReal(hole_size_input))
+        hole_input.setPositionBySketchPoints(hole_points)
+        hole_input.setDistanceExtent(adsk.core.ValueInput.createByReal(height_input))
+        holes.add(hole_input)
         
 
         ui.messageBox(f"Created shrunken triangles")
