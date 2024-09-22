@@ -105,6 +105,12 @@ def command_created(args: adsk.core.CommandCreatedEventArgs):
         defaultLengthUnits,
         adsk.core.ValueInput.createByReal(0.5),
     )  # New input for fillet radius
+    inputs.addValueInput(
+        "hole_size_input",
+        "Hole Size",
+        defaultLengthUnits,
+        adsk.core.ValueInput.createByReal(2.0),
+    )
 
     # Add a selection input for selecting a face
     selection_input = inputs.addSelectionInput(
@@ -129,6 +135,7 @@ def command_execute(args: adsk.core.CommandEventArgs):
     size_input = inputs.itemById("size_input").value
     height_input = inputs.itemById("height_input").value
     fillet_radius_input = inputs.itemById("fillet_radius_input").value
+    hole_size_input = inputs.itemById("hole_size_input").value
 
     # Get the selected face
     face_selection = adsk.fusion.BRepFace.cast(
@@ -269,6 +276,19 @@ def command_execute(args: adsk.core.CommandEventArgs):
         fillet_input = root_comp.features.filletFeatures.createInput()
         fillet_input.addConstantRadiusEdgeSet(edges, adsk.core.ValueInput.createByReal(fillet_radius_input), True)
         root_comp.features.filletFeatures.add(fillet_input)
+        
+        # add hole on all points in the pointgrid
+        holes = adsk.core.ObjectCollection.create()
+        for x in range(len(point_grid)):
+            for y in range(len(point_grid[x])):
+                if point_grid[x][y]:
+                    holes.add(point_grid[x][y].geometry)
+        
+        hole_input = root_comp.features.holeFeatures.createSimpleInput(adsk.core.ValueInput.createByReal(hole_size_input))
+        hole_input.setPositionBySketchPoints(holes)
+        hole_input.setDistanceExtent(adsk.core.ValueInput.createByReal(-height_input))
+        root_comp.features.holeFeatures.add(hole_input)
+        
 
         ui.messageBox(f"Created shrunken triangles")
 
