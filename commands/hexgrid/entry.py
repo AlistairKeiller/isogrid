@@ -6,10 +6,10 @@ import os
 from ...lib import fusionAddInUtils as futil
 from ... import config
 
-app = adsk.core.Application.get()
-ui = app.userInterface
-design = app.activeProduct
-root_comp = design.rootComponent
+app: adsk.core.Application = adsk.core.Application.get()
+ui: adsk.core.UserInterface = app.userInterface
+design: adsk.fusion.Design = app.activeProduct
+root_comp: adsk.fusion.Component = design.rootComponent
 
 # TODO *** Specify the command identity information. ***
 CMD_ID = f"{config.COMPANY_NAME}_{config.ADDIN_NAME}_hexgrid_cmd"
@@ -288,7 +288,6 @@ def command_execute(args: adsk.core.CommandEventArgs):
         hole_input.setPositionBySketchPoints(hole_points)
         hole_input.setDistanceExtent(adsk.core.ValueInput.createByReal(height_input))
         holes.add(hole_input)
-        
 
         ui.messageBox(f"Created shrunken triangles")
 
