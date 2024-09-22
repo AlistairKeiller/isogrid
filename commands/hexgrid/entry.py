@@ -197,20 +197,19 @@ def command_execute(args: adsk.core.CommandEventArgs):
                                 thickness_input
                             )
 
-                    if (x + 2 < len(point_grid) and
-                        point_grid[x + 1][y] and point_grid[x + 2][y + 1] and point_grid[x + 1][y + 1]):
+                    if point_grid[x][y] and point_grid[x + 1][y + 1] and point_grid[x][y + 1]:
                         draw_shrunken_triangle(
                             sketch,
-                            point_grid[x + 1][y],
-                            point_grid[x + 2][y + 1],
+                            point_grid[x][y],
                             point_grid[x + 1][y + 1],
+                            point_grid[x][y + 1],
                             thickness_input
                         )
                         if triangle_area is None:
                             triangle_area = calculate_triangle_area(
-                                point_grid[x + 1][y],
-                                point_grid[x + 2][y + 1],
+                                point_grid[x][y],
                                 point_grid[x + 1][y + 1],
+                                point_grid[x][y + 1],
                                 thickness_input
                             )
                 else:
