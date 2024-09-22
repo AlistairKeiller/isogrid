@@ -257,6 +257,18 @@ def command_execute(args: adsk.core.CommandEventArgs):
             ext_input.setDistanceExtent(False, adsk.core.ValueInput.createByReal(-height_input))
             extrudes.add(ext_input)
 
+        # find all vertical edges
+        edges = adsk.core.ObjectCollection.create()
+        for edge in face_selection.body.edges:
+            if edge.startVertex.geometry.isEqualTo(edge.endVertex.geometry):
+                continue
+            if abs(edge.startVertex.geometry.x - edge.endVertex.geometry.x) < 1e-6 and abs(edge.startVertex.geometry.y - edge.endVertex.geometry.y) < 1e-6:
+                edges.add(edge)
+
+        fillet_input = root_comp.features.filletFeatures.createInput()
+        fillet_input.addConstantRadiusEdgeSet(edges, adsk.core.ValueInput.createByReal(fillet_radius_input), True)
+        root_comp.features.filletFeatures.add(fillet_input)
+
         ui.messageBox(f"Created shrunken triangles")
 
     except:
