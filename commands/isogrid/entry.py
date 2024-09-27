@@ -164,6 +164,7 @@ def command_execute(args: adsk.core.CommandEventArgs):
 
         # Grid of points centered at center_point
         hole_points = adsk.core.ObjectCollection.create()
+        triangle_lines = []  # List to store the lines forming triangles
         for x in range(grid_width):
             for y in range(grid_height):
                 point = adsk.core.Point3D.create(
@@ -182,38 +183,45 @@ def command_execute(args: adsk.core.CommandEventArgs):
                     hole_points.add(point_grid[x][y])
 
         # Create triangles by connecting adjacent points
-        # triangle_area = None # make this closed form
         for x in range(len(point_grid) - 1):
             for y in range(len(point_grid[x]) - 1):
                 if y % 2 == 1:
-                    draw_shrunken_triangle(
-                        sketch,
-                        point_grid[x][y],
-                        point_grid[x + 1][y],
-                        point_grid[x + 1][y + 1],
-                        thickness_input,
+                    triangle_lines.extend(
+                        draw_shrunken_triangle(
+                            sketch,
+                            point_grid[x][y],
+                            point_grid[x + 1][y],
+                            point_grid[x + 1][y + 1],
+                            thickness_input,
+                        )
                     )
-                    draw_shrunken_triangle(
-                        sketch,
-                        point_grid[x][y],
-                        point_grid[x + 1][y + 1],
-                        point_grid[x][y + 1],
-                        thickness_input,
+                    triangle_lines.extend(
+                        draw_shrunken_triangle(
+                            sketch,
+                            point_grid[x][y],
+                            point_grid[x + 1][y + 1],
+                            point_grid[x][y + 1],
+                            thickness_input,
+                        )
                     )
                 else:
-                    draw_shrunken_triangle(
-                        sketch,
-                        point_grid[x][y],
-                        point_grid[x + 1][y],
-                        point_grid[x][y + 1],
-                        thickness_input,
+                    triangle_lines.extend(
+                        draw_shrunken_triangle(
+                            sketch,
+                            point_grid[x][y],
+                            point_grid[x + 1][y],
+                            point_grid[x][y + 1],
+                            thickness_input,
+                        )
                     )
-                    draw_shrunken_triangle(
-                        sketch,
-                        point_grid[x + 1][y],
-                        point_grid[x + 1][y + 1],
-                        point_grid[x][y + 1],
-                        thickness_input,
+                    triangle_lines.extend(
+                        draw_shrunken_triangle(
+                            sketch,
+                            point_grid[x + 1][y],
+                            point_grid[x + 1][y + 1],
+                            point_grid[x][y + 1],
+                            thickness_input,
+                        )
                     )
 
         # adds every profile with area equal to shrunken triangle area to the combined_profiles collection
@@ -236,17 +244,36 @@ def command_execute(args: adsk.core.CommandEventArgs):
             )
             root_comp.features.extrudeFeatures.add(ext_input)
 
-        # find all vertical edges
+        # Filter vertical edges that match the triangle edges
         edges = adsk.core.ObjectCollection.create()
         for edge in face_selection.body.edges:
-            if (
-                not edge.startVertex.geometry.isEqualTo(edge.endVertex.geometry)
-                and abs(edge.startVertex.geometry.x - edge.endVertex.geometry.x) < 1e-6
-                and abs(edge.startVertex.geometry.y - edge.endVertex.geometry.y) < 1e-6
-            ):
-                edges.add(edge)
+            for line in triangle_lines:
+                # Check if the edge shares the same xy coordinates with the triangle line
+                if (
+                    not edge.startVertex.geometry.isEqualTo(edge.endVertex.geometry)
+                    and abs(edge.startVertex.geometry.x - edge.endVertex.geometry.x)
+                    < 1e-6
+                    and abs(edge.startVertex.geometry.y - edge.endVertex.geometry.y)
+                    < 1e-6
+                    and (
+                        edge.startVertex.geometry.isEqualTo(
+                            line.startSketchPoint.worldGeometry
+                        )
+                        or edge.endVertex.geometry.isEqualTo(
+                            line.endSketchPoint.worldGeometry
+                        )
+                        or edge.endVertex.geometry.isEqualTo(
+                            line.endSketchPoint.worldGeometry
+                        )
+                        or edge.endVertex.geometry.isEqualTo(
+                            line.startSketchPoint.worldGeometry
+                        )
+                    )
+                ):
+                    edges.add(edge)
+                    break
 
-        # fillet the vertical edges
+        # Fillet the vertical edges
         if edges.count != 0:
             fillet_input = root_comp.features.filletFeatures.createInput()
             fillet_input.addConstantRadiusEdgeSet(
@@ -297,9 +324,19 @@ def draw_shrunken_triangle(sketch, p1, p2, p3, thickness):
             new_points.append(new_pt)
 
         # Draw the shrunken triangle
-        sketch.sketchCurves.sketchLines.addByTwoPoints(new_points[0], new_points[1])
-        sketch.sketchCurves.sketchLines.addByTwoPoints(new_points[1], new_points[2])
-        sketch.sketchCurves.sketchLines.addByTwoPoints(new_points[2], new_points[0])
+        line1 = sketch.sketchCurves.sketchLines.addByTwoPoints(
+            new_points[0], new_points[1]
+        )
+        line2 = sketch.sketchCurves.sketchLines.addByTwoPoints(
+            new_points[1], new_points[2]
+        )
+        line3 = sketch.sketchCurves.sketchLines.addByTwoPoints(
+            new_points[2], new_points[0]
+        )
+
+        return [line1, line2, line3]  # Return the lines created by the triangle
+    return []
+
 
 # This event handler is called when the command terminates.
 def command_destroy(args: adsk.core.CommandEventArgs):
