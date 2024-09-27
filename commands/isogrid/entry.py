@@ -173,7 +173,8 @@ def command_execute(args: adsk.core.CommandEventArgs):
                     + (y % 2) * size_input / 2,
                     min_point.y
                     + y * (size_input * math.sqrt(3) / 2)
-                    + ((max_point.y - min_point.y) % (size_input * math.sqrt(3) / 2)) / 2,
+                    + ((max_point.y - min_point.y) % (size_input * math.sqrt(3) / 2))
+                    / 2,
                     0,
                 )
                 if face_selection.isPointOnFace(sketch.sketchToModelSpace(point)):
@@ -186,11 +187,11 @@ def command_execute(args: adsk.core.CommandEventArgs):
             for y in range(len(point_grid[x]) - 1):
                 if y % 2 == 1:
                     draw_shrunken_triangle(
-                            sketch,
-                            point_grid[x][y],
-                            point_grid[x + 1][y],
-                            point_grid[x + 1][y + 1],
-                            thickness_input,
+                        sketch,
+                        point_grid[x][y],
+                        point_grid[x + 1][y],
+                        point_grid[x + 1][y + 1],
+                        thickness_input,
                     )
                     draw_shrunken_triangle(
                         sketch,
@@ -217,7 +218,11 @@ def command_execute(args: adsk.core.CommandEventArgs):
 
         # adds every profile with area equal to shrunken triangle area to the combined_profiles collection
         combined_profiles = adsk.core.ObjectCollection.create()
-        triangle_area = (math.sqrt(3) * size_input**2) / 4 + (3 * math.sqrt(3) * thickness_input**2) / 4 - (3 * size_input * thickness_input) / 2
+        triangle_area = (
+            (math.sqrt(3) * size_input**2) / 4
+            + (3 * math.sqrt(3) * thickness_input**2) / 4
+            - (3 * size_input * thickness_input) / 2
+        )
         for profile in sketch.profiles:
             if abs(profile.areaProperties().area - triangle_area) < 1e-6:
                 combined_profiles.add(profile)
@@ -235,8 +240,8 @@ def command_execute(args: adsk.core.CommandEventArgs):
         edges = adsk.core.ObjectCollection.create()
         for edge in face_selection.body.edges:
             if (
-                not edge.startVertex.geometry.isEqualTo(edge.endVertex.geometry) and
-                abs(edge.startVertex.geometry.x - edge.endVertex.geometry.x) < 1e-6
+                not edge.startVertex.geometry.isEqualTo(edge.endVertex.geometry)
+                and abs(edge.startVertex.geometry.x - edge.endVertex.geometry.x) < 1e-6
                 and abs(edge.startVertex.geometry.y - edge.endVertex.geometry.y) < 1e-6
             ):
                 edges.add(edge)
@@ -254,7 +259,9 @@ def command_execute(args: adsk.core.CommandEventArgs):
                 adsk.core.ValueInput.createByReal(hole_size_input)
             )
             hole_input.setPositionBySketchPoints(hole_points)
-            hole_input.setDistanceExtent(adsk.core.ValueInput.createByReal(height_input))
+            hole_input.setDistanceExtent(
+                adsk.core.ValueInput.createByReal(height_input)
+            )
             root_comp.features.holeFeatures.add(hole_input)
 
         ui.messageBox("Created shrunken triangles")
@@ -278,16 +285,14 @@ def draw_shrunken_triangle(sketch, p1, p2, p3, thickness):
         for pt in pts:
             dx = centroid_x - pt.x
             dy = centroid_y - pt.y
-            length = (dx**2 + dy**2)**0.5
+            length = (dx**2 + dy**2) ** 0.5
             if length == 0:
                 new_pt = pt
             else:
                 dx_norm = dx / length
                 dy_norm = dy / length
                 new_pt = adsk.core.Point3D.create(
-                    pt.x + dx_norm * thickness,
-                    pt.y + dy_norm * thickness,
-                    0
+                    pt.x + dx_norm * thickness, pt.y + dy_norm * thickness, 0
                 )
             new_points.append(new_pt)
 
