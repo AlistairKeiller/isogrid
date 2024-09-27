@@ -163,6 +163,7 @@ def command_execute(args: adsk.core.CommandEventArgs):
         point_grid = [[None for _ in range(grid_height)] for _ in range(grid_width)]
 
         # Grid of points centered at center_point
+        hole_points = adsk.core.ObjectCollection.create()
         for x in range(grid_width):
             for y in range(grid_height):
                 point = adsk.core.Point3D.create(
@@ -177,6 +178,7 @@ def command_execute(args: adsk.core.CommandEventArgs):
                 )
                 if face_selection.isPointOnFace(sketch.sketchToModelSpace(point)):
                     point_grid[x][y] = sketch.sketchPoints.add(point)
+                    hole_points.add(point_grid[x][y])
 
         # Create triangles by connecting adjacent points
         # triangle_area = None # make this closed form
@@ -241,25 +243,20 @@ def command_execute(args: adsk.core.CommandEventArgs):
                 edges.add(edge)
 
         # fillet the vertical edges
-        fillet_input = root_comp.features.filletFeatures.createInput()
-        fillet_input.addConstantRadiusEdgeSet(
-            edges, adsk.core.ValueInput.createByReal(fillet_radius_input), True
-        )
-        root_comp.features.filletFeatures.add(fillet_input)
+        if edges.count != 0:
+            fillet_input = root_comp.features.filletFeatures.createInput()
+            fillet_input.addConstantRadiusEdgeSet(
+                edges, adsk.core.ValueInput.createByReal(fillet_radius_input), True
+            )
+            root_comp.features.filletFeatures.add(fillet_input)
 
-        # add hole on all points in the pointgrid
-        hole_points = adsk.core.ObjectCollection.create()
-        for x in range(len(point_grid)):
-            for y in range(len(point_grid[x])):
-                if point_grid[x][y]:
-                    hole_points.add(point_grid[x][y])
-
-        hole_input = root_comp.features.holeFeatures.createSimpleInput(
-            adsk.core.ValueInput.createByReal(hole_size_input)
-        )
-        hole_input.setPositionBySketchPoints(hole_points)
-        hole_input.setDistanceExtent(adsk.core.ValueInput.createByReal(height_input))
-        root_comp.features.holeFeatures.add(hole_input)
+        if hole_points.count != 0:
+            hole_input = root_comp.features.holeFeatures.createSimpleInput(
+                adsk.core.ValueInput.createByReal(hole_size_input)
+            )
+            hole_input.setPositionBySketchPoints(hole_points)
+            hole_input.setDistanceExtent(adsk.core.ValueInput.createByReal(height_input))
+            root_comp.features.holeFeatures.add(hole_input)
 
         ui.messageBox("Created shrunken triangles")
 
